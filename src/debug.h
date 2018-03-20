@@ -15,9 +15,13 @@
  *  @param  [in]    format  出力文字列書式.
  *  @param  [in]    ...     書式パラメータ.
  */
+#if NODEBUG == 0
 #define DEBUG(format, ...)                                                                      \
     do {                                                                                        \
         fprintf(stderr, "%s:%d(%s) " format "\n", __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
     } while(0)
+#else
+#define DEBUG(format, ...)
+#endif
 
 #endif /* __HFSM_DEBUG_H__ */

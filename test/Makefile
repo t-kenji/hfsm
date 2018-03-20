@@ -10,12 +10,13 @@ OPT_OPTIM = -Og
 OPT_DBG = -g
 OPT_DEP = -MMD -MP
 EXTRA_DEFS =
+EXTRA_LIBS =
 
 OPTS = $(OPT_WARN) $(OPT_OPTIM) $(OPT_DBG) $(OPT_DEP)
 CFLAGS = -std=c++11 $(OPTS) $(INCS)
 CPPFLAGS = $(EXTRA_DEFS)
 LDFLAGS =
-LIBS = ../src/lib$(NAME).a
+LIBS = ../src/lib$(NAME).a $(EXTRA_LIBS)
 
 SRCS = main.cpp
 DEPS = $(SRCS:.cpp=.d)

@@ -3,17 +3,12 @@
 
 #include <stdbool.h>
 
-struct fsm_state;
+#include "collections.h"
+
 struct fsm_trans;
+struct fsm;
 
-struct fsm {
-    const struct fsm_state *current;
-    const struct fsm_trans *corresps;
-};
-
-extern const struct fsm_state state_start;
-
-int fsm_init(struct fsm *machine, const struct fsm_trans *corresps);
+struct fsm *fsm_init(const struct fsm_trans *corresps);
 int fsm_term(struct fsm *machine);
 void fsm_transition(struct fsm *machine, int event);
 void fsm_update(struct fsm *machine);
@@ -57,6 +52,8 @@ struct fsm_state {
     };                                             \
     static const struct fsm_state var =            \
         FSM_STATE_HELPER(#var, (prnt), &var##_var, (ent), (exe), (exi))
+
+extern const struct fsm_state state_start;
 
 struct fsm_trans {
     const struct fsm_state *from;

@@ -8,7 +8,6 @@
 
 extern "C" {
 #include "debug.h"
-#include "collections.h"
 #include "hfsm.h"
 }
 
@@ -108,15 +107,15 @@ int main(int argc, char **argv)
         FSM_TRANS_HELPER(&state_state0, 4, NULL, &state_state1),
         FSM_TRANS_TERMINATOR
     };
-    static struct fsm machine;
+    struct fsm *machine;
 
-    fsm_init(&machine, corresps);
-    fsm_transition(&machine, 0);
-    fsm_transition(&machine, 1);
-    fsm_transition(&machine, 2);
-    fsm_transition(&machine, 3);
-    fsm_transition(&machine, 4);
-    fsm_term(&machine);
+    machine = fsm_init(corresps);
+    fsm_transition(machine, 0);
+    fsm_transition(machine, 1);
+    fsm_transition(machine, 2);
+    fsm_transition(machine, 3);
+    fsm_transition(machine, 4);
+    fsm_term(machine);
 
     return 0;
 }
