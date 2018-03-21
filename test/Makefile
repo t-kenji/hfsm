@@ -5,6 +5,9 @@ include ../config.mk
 TARGET = $(NAME)_test
 
 INCS = -I. -I../include -I../src
+ifneq ($(CATCH2_DIR),)
+  INCS += -I$(CATCH2_DIR)
+endif
 OPT_WARN = -Wall -Werror
 OPT_OPTIM = -Og
 OPT_DBG = -g
@@ -18,7 +21,7 @@ CPPFLAGS = $(EXTRA_DEFS)
 LDFLAGS =
 LIBS = ../src/lib$(NAME).a $(EXTRA_LIBS)
 
-SRCS = main.cpp
+SRCS = main.cpp collections.cpp hfsm.cpp
 DEPS = $(SRCS:.cpp=.d)
 OBJS = $(SRCS:.cpp=.o)
 

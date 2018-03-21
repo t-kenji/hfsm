@@ -1,8 +1,8 @@
 /** @file   debug.h
- *  @brief  provide functions related to debugging.
+ *  @brief  デバッグに関する機能を提供する.
  *
  *  @author t-kenji <protect.2501@gmail.com>
- *  @date   2018-03-18 create new.
+ *  @date   2018-03-18 新規作成.
  */
 #ifndef __HFSM_DEBUG_H__
 #define __HFSM_DEBUG_H__

@@ -9,7 +9,7 @@ all:
 
 test: all
 	@make -C test
-	@./test/$(NAME)_test
+	@./test/$(NAME)_test $(TAGS)
 
 clean:
 	@make -C src clean

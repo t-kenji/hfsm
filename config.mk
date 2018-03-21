@@ -8,6 +8,9 @@ VERSION = $(MAJOR_VERSION).$(MINOR_VERSION).$(REVISION)
 
 NODEBUG = 0
 
+## Header direcotyr of Catch2 test framework.
+CATCH2_DIR ?=
+
 CC = $(CROSS_COMPILE)gcc
 CXX = $(CROSS_COMPILE)g++
 LD = $(CROSS_COMPILE)ld
