@@ -35,6 +35,12 @@ static void action_only_action(struct fsm *machine)
     action_only_param = true;
 }
 
+static bool cond_only_param = false;
+static bool cond_only_cond(struct fsm *machine)
+{
+    return cond_only_param;
+}
+
 SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
     GIVEN("特になし") {
         WHEN("状態遷移なしで状態マシンを初期化する") {
@@ -49,7 +55,7 @@ SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
 
         WHEN("1 つの状態遷移で状態マシンを初期化する") {
             const struct fsm_trans corresps[] = {
-                FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
+                FSM_TRANS_HELPER(&state_start, 1, NULL, NULL, &state_root_with_no_handler),
                 FSM_TRANS_TERMINATOR
             };
             struct fsm *machine = fsm_init(corresps);
@@ -66,7 +72,7 @@ SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
 SCENARIO("状態遷移できること", "[fsm][trans]") {
     GIVEN("1 つの状態遷移で状態マシンを初期化する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, NULL, &state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -98,11 +104,11 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
 
     GIVEN("5 つの状態遷移で状態マシンを初期化する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
-            FSM_TRANS_HELPER(&state_root_with_no_handler2, 3, NULL, &state_root_with_no_handler3),
-            FSM_TRANS_HELPER(&state_root_with_no_handler4, 5, NULL, &state_root_with_no_handler5),
-            FSM_TRANS_HELPER(&state_root_with_no_handler, 2, NULL, &state_root_with_no_handler2),
-            FSM_TRANS_HELPER(&state_root_with_no_handler3, 4, NULL, &state_root_with_no_handler4),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_root_with_no_handler2, 3, NULL, NULL, &state_root_with_no_handler3),
+            FSM_TRANS_HELPER(&state_root_with_no_handler4, 5, NULL, NULL, &state_root_with_no_handler5),
+            FSM_TRANS_HELPER(&state_root_with_no_handler, 2, NULL, NULL, &state_root_with_no_handler2),
+            FSM_TRANS_HELPER(&state_root_with_no_handler3, 4, NULL, NULL, &state_root_with_no_handler4),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -139,11 +145,11 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
 
     GIVEN("Null 遷移を含む 5 つの状態遷移で状態マシンを初期化する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler),
-            FSM_TRANS_HELPER(&state_root_with_no_handler2, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler3),
-            FSM_TRANS_HELPER(&state_root_with_no_handler4, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler5),
-            FSM_TRANS_HELPER(&state_root_with_no_handler, 1, NULL, &state_root_with_no_handler2),
-            FSM_TRANS_HELPER(&state_root_with_no_handler3, 2, NULL, &state_root_with_no_handler4),
+            FSM_TRANS_HELPER(&state_start, EVENT_NULL_TRANSITION, NULL, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_root_with_no_handler2, EVENT_NULL_TRANSITION, NULL, NULL, &state_root_with_no_handler3),
+            FSM_TRANS_HELPER(&state_root_with_no_handler4, EVENT_NULL_TRANSITION, NULL, NULL, &state_root_with_no_handler5),
+            FSM_TRANS_HELPER(&state_root_with_no_handler, 1, NULL, NULL, &state_root_with_no_handler2),
+            FSM_TRANS_HELPER(&state_root_with_no_handler3, 2, NULL, NULL, &state_root_with_no_handler4),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -173,7 +179,7 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
 SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action]") {
     GIVEN("entry アクションのみの状態への遷移を定義する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_entry_only),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, NULL, &state_entry_only),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -193,7 +199,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
 
     GIVEN("イベントアクションありの状態遷移を定義する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 1, action_only_action, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, action_only_action, &state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -207,6 +213,42 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
                 REQUIRE(action_only_param == true);
             }
         }
+
+        fsm_term(machine);
+    }
+}
+
+SCENARIO("ガード条件により遷移がキャンセル中止されること", "[fsm][cond]") {
+    GIVEN("ガード条件ありの遷移を定義する") {
+        const struct fsm_trans corresps[] = {
+            FSM_TRANS_HELPER(&state_start, 1, cond_only_cond, NULL, &state_root_with_no_handler),
+            FSM_TRANS_TERMINATOR
+        };
+        struct fsm *machine = fsm_init(corresps);
+        REQUIRE(machine != NULL);
+
+        WHEN("ガード条件を満たす状態で遷移を行う") {
+            cond_only_param = true;
+            fsm_transition(machine, 1);
+
+            THEN("状態遷移が行われること") {
+                char name[32] = {0};
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler"));
+            }
+        }
+
+        WHEN("ガード条件を満たさない状態で遷移を行う") {
+            cond_only_param = false;
+            fsm_transition(machine, 1);
+
+            THEN("状態遷移が行われないこと") {
+                char name[32] = {0};
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("start"));
+            }
+        }
+
 
         fsm_term(machine);
     }

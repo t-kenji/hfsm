@@ -95,6 +95,7 @@ extern const struct fsm_state state_start;
 struct fsm_trans {
     const struct fsm_state *from; /**< 起点となる状態. */
     int event;                    /**< 関連付けるイベント. */
+    bool (*cond)(struct fsm *);   /**< ガード条件. */
     void (*action)(struct fsm *); /**< イベントアクション */
     const struct fsm_state *to;   /**< 遷移先の状態 */
 };
@@ -102,19 +103,20 @@ struct fsm_trans {
 /**
  *  遷移構造体の設定ヘルパ.
  */
-#define FSM_TRANS_HELPER(f, e, a, t) \
-    {                                \
-        .from = (f),                 \
-        .event = (e),                \
-        .action = (a),               \
-        .to = (t)                    \
+#define FSM_TRANS_HELPER(f, e, c, a, t) \
+    {                                   \
+        .from = (f),                    \
+        .event = (e),                   \
+        .cond = (c),                    \
+        .action = (a),                  \
+        .to = (t)                       \
     }
 
 /**
  *  遷移構造体の初期化子.
  */
 #define FSM_TRANS_INITIALIZER \
-    (struct fsm_trans)FSM_TRANS_HELPER(NULL, -1, NULL, NULL)
+    (struct fsm_trans)FSM_TRANS_HELPER(NULL, -1, NULL, NULL, NULL)
 
 /**
  *  遷移対応配列の終端.

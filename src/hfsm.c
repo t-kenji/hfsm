@@ -196,6 +196,10 @@ DEBUG("state: %s -> %s", machine->current->name, new_state->name);
 /**
  *  状態の遷移を行う.
  *
+ *  遷移にガード条件が設定されている場合は, 条件を満たさない場合は
+ *  遷移は行わない.
+ *  遷移にアクションが設定されている場合は, アクションを実行後に遷移を行う.
+ *
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   起点となる状態.
  *  @param  [in]    event   発生したイベント.
@@ -209,10 +213,12 @@ static bool fsm_state_transit(struct fsm *machine, const struct fsm_state *state
     for (i = 0; machine->corresps[i].from != NULL; ++i) {
         const struct fsm_trans *corr = &machine->corresps[i];
         if ((corr->from == state) && (corr->event == event)) {
-            if (corr->action != NULL) {
-                corr->action(machine);
+            if ((corr->cond == NULL) || corr->cond(machine)) {
+                if (corr->action != NULL) {
+                    corr->action(machine);
+                }
+                fsm_change_state(machine, corr->to);
             }
-            fsm_change_state(machine, corr->to);
             return true;
         }
     }
