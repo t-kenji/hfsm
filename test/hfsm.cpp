@@ -49,7 +49,7 @@ SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
 
         WHEN("1 つの状態遷移で状態マシンを初期化する") {
             const struct fsm_trans corresps[] = {
-                FSM_TRANS_HELPER(&state_start, 0, NULL, &state_root_with_no_handler),
+                FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
                 FSM_TRANS_TERMINATOR
             };
             struct fsm *machine = fsm_init(corresps);
@@ -66,14 +66,14 @@ SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
 SCENARIO("状態遷移できること", "[fsm][trans]") {
     GIVEN("1 つの状態遷移で状態マシンを初期化する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 0, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを発生させる") {
-            fsm_transition(machine, 0);
+            fsm_transition(machine, 1);
 
             THEN("現在の状態が 'state_root_with_no_handler' になること") {
                 char name[32] = {0};
@@ -98,11 +98,11 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
 
     GIVEN("5 つの状態遷移で状態マシンを初期化する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 0, NULL, &state_root_with_no_handler),
-            FSM_TRANS_HELPER(&state_root_with_no_handler2, 2, NULL, &state_root_with_no_handler3),
-            FSM_TRANS_HELPER(&state_root_with_no_handler4, 4, NULL, &state_root_with_no_handler5),
-            FSM_TRANS_HELPER(&state_root_with_no_handler, 1, NULL, &state_root_with_no_handler2),
-            FSM_TRANS_HELPER(&state_root_with_no_handler3, 3, NULL, &state_root_with_no_handler4),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_root_with_no_handler2, 3, NULL, &state_root_with_no_handler3),
+            FSM_TRANS_HELPER(&state_root_with_no_handler4, 5, NULL, &state_root_with_no_handler5),
+            FSM_TRANS_HELPER(&state_root_with_no_handler, 2, NULL, &state_root_with_no_handler2),
+            FSM_TRANS_HELPER(&state_root_with_no_handler3, 4, NULL, &state_root_with_no_handler4),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -112,23 +112,55 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
             THEN("最終的に現在の状態が 'state_root_with_no_handler5' になること") {
                 char name[32] = {0};
 
-                fsm_transition(machine, 0);
+                fsm_transition(machine, 1);
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler"));
+
+                fsm_transition(machine, 2);
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler2"));
+
+                fsm_transition(machine, 3);
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler3"));
+
+                fsm_transition(machine, 4);
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler4"));
+
+                fsm_transition(machine, 5);
+                fsm_current_state(machine, name, sizeof(name));
+                REQUIRE_THAT(name, Equals("state_root_with_no_handler5"));
+            }
+        }
+
+        fsm_term(machine);
+    }
+
+    GIVEN("Null 遷移を含む 5 つの状態遷移で状態マシンを初期化する") {
+        const struct fsm_trans corresps[] = {
+            FSM_TRANS_HELPER(&state_start, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_root_with_no_handler2, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler3),
+            FSM_TRANS_HELPER(&state_root_with_no_handler4, EVENT_NULL_TRANSITION, NULL, &state_root_with_no_handler5),
+            FSM_TRANS_HELPER(&state_root_with_no_handler, 1, NULL, &state_root_with_no_handler2),
+            FSM_TRANS_HELPER(&state_root_with_no_handler3, 2, NULL, &state_root_with_no_handler4),
+            FSM_TRANS_TERMINATOR
+        };
+        struct fsm *machine = fsm_init(corresps);
+        REQUIRE(machine != NULL);
+
+        WHEN("状態遷移にあるイベントを順に発生させる") {
+            THEN("最終的に現在の状態が 'state_root_with_no_handler5' になること") {
+                char name[32] = {0};
+
                 fsm_current_state(machine, name, sizeof(name));
                 REQUIRE_THAT(name, Equals("state_root_with_no_handler"));
 
                 fsm_transition(machine, 1);
                 fsm_current_state(machine, name, sizeof(name));
-                REQUIRE_THAT(name, Equals("state_root_with_no_handler2"));
-
-                fsm_transition(machine, 2);
-                fsm_current_state(machine, name, sizeof(name));
                 REQUIRE_THAT(name, Equals("state_root_with_no_handler3"));
 
-                fsm_transition(machine, 3);
-                fsm_current_state(machine, name, sizeof(name));
-                REQUIRE_THAT(name, Equals("state_root_with_no_handler4"));
-
-                fsm_transition(machine, 4);
+                fsm_transition(machine, 2);
                 fsm_current_state(machine, name, sizeof(name));
                 REQUIRE_THAT(name, Equals("state_root_with_no_handler5"));
             }
@@ -141,7 +173,7 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
 SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action]") {
     GIVEN("entry アクションのみの状態への遷移を定義する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 0, NULL, &state_entry_only),
+            FSM_TRANS_HELPER(&state_start, 1, NULL, &state_entry_only),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -149,7 +181,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
 
         WHEN("状態遷移にあるイベントを発生させる") {
             REQUIRE(entry_only_param == false);
-            fsm_transition(machine, 0);
+            fsm_transition(machine, 1);
 
             THEN("entry アクションが呼び出されること") {
                 REQUIRE(entry_only_param == true);
@@ -161,7 +193,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
 
     GIVEN("イベントアクションありの状態遷移を定義する") {
         const struct fsm_trans corresps[] = {
-            FSM_TRANS_HELPER(&state_start, 0, action_only_action, &state_root_with_no_handler),
+            FSM_TRANS_HELPER(&state_start, 1, action_only_action, &state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
         struct fsm *machine = fsm_init(corresps);
@@ -169,7 +201,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
 
         WHEN("状態遷移にあるイベントを発生させる") {
             REQUIRE(action_only_param == false);
-            fsm_transition(machine, 0);
+            fsm_transition(machine, 1);
 
             THEN("イベントアクションが呼び出されること") {
                 REQUIRE(action_only_param == true);

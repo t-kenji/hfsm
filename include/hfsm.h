@@ -11,6 +11,11 @@
 
 #include "collections.h"
 
+/**
+ *  Null 遷移のイベント番号.
+ */
+#define EVENT_NULL_TRANSITION (0)
+
 struct fsm_trans;
 struct fsm;
 
@@ -135,6 +140,11 @@ void fsm_transition(struct fsm *machine, int event);
  *  現在の状態の do アクティビティを実行する.
  */
 void fsm_update(struct fsm *machine);
+
+/**
+ *  状態の固有情報を取得する.
+ */
+void *fsm_get_state_data(const struct fsm_state *state);
 
 /**
  *  現在の状態名を取得する.

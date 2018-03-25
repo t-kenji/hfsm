@@ -13,6 +13,11 @@
 #include "hfsm.h"
 
 /**
+ *  最大のコンポジット状態ネスト.
+ */
+#define NEST_MAX (5)
+
+/**
  *  状態マシン構造体.
  */
 struct fsm {
@@ -233,8 +238,8 @@ struct fsm *fsm_init(const struct fsm_trans *corresps)
     }
 
     machine = malloc(sizeof(struct fsm));
-    src_ancs = stack_init(sizeof(struct fsm_state*), 5);
-    dest_ancs = stack_init(sizeof(struct fsm_state*), 5);
+    src_ancs = stack_init(sizeof(struct fsm_state*), NEST_MAX);
+    dest_ancs = stack_init(sizeof(struct fsm_state*), NEST_MAX);
     if ((machine == NULL) || (src_ancs == NULL) || (dest_ancs == NULL)) {
         stack_release(dest_ancs);
         stack_release(src_ancs);
@@ -243,6 +248,9 @@ struct fsm *fsm_init(const struct fsm_trans *corresps)
     }
 
     *machine = FSM_HELPER(&state_start, corresps, src_ancs, dest_ancs);
+
+    /* Null 遷移を行う. */
+    fsm_state_transit(machine, machine->current, EVENT_NULL_TRANSITION);
 
     return machine;
 }
@@ -278,11 +286,19 @@ int fsm_term(struct fsm *machine)
  */
 void fsm_transition(struct fsm *machine, int event)
 {
-    const struct fsm_state *state = machine->current;
+    const struct fsm_state *state;
 
+    if (machine == NULL) {
+        return;
+    }
+
+    state = machine->current;
     while ((state != NULL) && !fsm_state_transit(machine, state, event)) {
         state = state->parent;
     }
+
+    /* Null 遷移を行う. */
+    fsm_state_transit(machine, machine->current, EVENT_NULL_TRANSITION);
 }
 
 /**
@@ -292,7 +308,28 @@ void fsm_transition(struct fsm *machine, int event)
  */
 void fsm_update(struct fsm *machine)
 {
+    if (machine == NULL) {
+        return;
+    }
+
     exec_if_can_be(machine);
+}
+
+/**
+ *  @details    指定状態の固有情報を取得する.
+ *
+ *  @param      [in]    state   固有情報を取得したい状態.
+ *  @param      正常時は, 固有情報のポインタが返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ */
+void *fsm_get_state_data(const struct fsm_state *state)
+{
+    if (state == NULL) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    return get_state_variable(state)->data;
 }
 
 /**
