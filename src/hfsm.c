@@ -58,6 +58,7 @@ static const struct fsm_state state_end = FSM_STATE_INITIALIZER("end");
  *  @param  [in]    state   状態.
  *  @return 変数が設定されている場合は, @c state の変数のポインタが返る.
  *          設定されていない場合は, 固定の空変数のポインタが返る.
+ *  @pre    state != NULL
  */
 static inline struct fsm_state_variable *get_state_variable(const struct fsm_state *state)
 {
@@ -75,12 +76,14 @@ static inline struct fsm_state_variable *get_state_variable(const struct fsm_sta
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   遷移先の状態.
  *  @param  [in]    cmpl    遷移完了.
+ *  @pre    machine != NULL
+ *  @pre    state != NULL
  */
 static inline void entry_if_can_be(struct fsm *machine,
                                    const struct fsm_state *state,
                                    bool cmpl)
 {
-    if ((state != NULL) && (state->entry != NULL)) {
+    if (state->entry != NULL) {
         state->entry(machine, get_state_variable(state)->data, cmpl);
     }
 }
@@ -91,6 +94,7 @@ static inline void entry_if_can_be(struct fsm *machine,
  *  do アクティビティが設定されていない場合は何もしない.
  *
  *  @param  [in]    machine 状態マシン.
+ *  @pre    machine != NULL
  */
 static inline void exec_if_can_be(struct fsm *machine)
 {
@@ -111,12 +115,14 @@ static inline void exec_if_can_be(struct fsm *machine)
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   遷移元の状態.
  *  @param  [in]    cmpl    遷移完了.
+ *  @pre    machine != NULL
+ *  @pre    state != NULL
  */
 static inline void exit_if_can_be(struct fsm *machine,
                                   const struct fsm_state *state,
                                   bool cmpl)
 {
-    if ((state != NULL) && (state->exit != NULL)) {
+    if (state->exit != NULL) {
         state->exit(machine, get_state_variable(state)->data, cmpl);
     }
     if (state->parent != NULL) {
@@ -129,6 +135,8 @@ static inline void exit_if_can_be(struct fsm *machine,
  *
  *  @param  [in,out]    machine     状態マシン.
  *  @param  [in]        new_state   新しい状態.
+ *  @pre    machine != NULL
+ *  @pre    new_state != NULL
  */
 static void fsm_change_state(struct fsm *machine,
                              const struct fsm_state *new_state)
@@ -171,6 +179,7 @@ static void fsm_change_state(struct fsm *machine,
         stack_pop(src_ancs, &src_state);
         count = stack_pop(dest_ancs, &dest_state);
     } while (src_state == dest_state);
+    assert(dest_state != NULL);
     ancestor = (src_state != NULL) ? src_state->parent : machine->current;
 
     for (src_state = machine->current;
