@@ -11,11 +11,6 @@
 
 #include "collections.h"
 
-/**
- *  Null 遷移のイベント番号.
- */
-#define EVENT_NULL_TRANSITION (0)
-
 struct fsm_trans;
 struct fsm;
 
@@ -40,16 +35,13 @@ struct fsm_state_variable {
  *  状態構造体.
  */
 struct fsm_state {
-    const char *name;                      /**< 状態名. (デバッグ用途) */
-    const struct fsm_state * const parent; /**< 親状態. */
-    struct fsm_state_variable *variable;   /**< 状態変数. */
+    const char *name;                                 /**< 状態名. */
+    const struct fsm_state * const parent;            /**< 親状態. */
+    struct fsm_state_variable *variable;              /**< 状態変数. */
 
-                                           /**  entry アクション. */
-    void (* const entry)(struct fsm *machine, void *data, bool cmpl);
-                                           /**  do アクティビティ. */
-    void (* const exec)(struct fsm *machine, void *data);
-                                           /**  exit アクション. */
-    void (* const exit)(struct fsm *machine, void *data, bool cmpl);
+    void (* const entry)(struct fsm *, void *, bool); /**  entry アクション. */
+    void (* const exec)(struct fsm *, void *);        /**  do アクティビティ. */
+    void (* const exit)(struct fsm *, void *, bool);  /**  exit アクション. */
 };
 
 /**
@@ -74,30 +66,119 @@ struct fsm_state {
 /**
  *  状態定義ヘルパ.
  */
-#define FSM_STATE(var, prnt, dat, ent, exe, exi)   \
-    static struct fsm_state_variable var##_var = { \
-        .history = NULL,                           \
-        .data = (dat)                              \
-    };                                             \
-    static const struct fsm_state var =            \
-        FSM_STATE_HELPER(#var, (prnt), &var##_var, (ent), (exe), (exi))
+#define FSM_STATE(var, prnt, dat, ent, exe, exi)                         \
+    static struct fsm_state_variable var##_var = {                       \
+        .history = NULL,                                                 \
+        .data = (dat)                                                    \
+    };                                                                   \
+    static const struct fsm_state var##_ =                               \
+        FSM_STATE_HELPER(#var, (prnt), &var##_var, (ent), (exe), (exi)), \
+                                  *var = &var##_
 
 /**
  *  開始状態.
  *
  *  @ref struct hfsm の初期状態となる.
  */
-extern const struct fsm_state state_start;
+extern const struct fsm_state *state_start;
+
+/**
+ *  イベント構造体.
+ */
+struct fsm_event {
+    const char *name; /**< イベント名. */
+};
+
+/**
+ *  イベント構造体設定ヘルパ.
+ */
+#define FSM_EVENT_HELPER(nam) \
+    {                         \
+        .name = (nam)         \
+    }
+
+/**
+ *  イベント構造体初期化子.
+ */
+#define FSM_EVENT_INITIALIZER(nam) (struct fsm_event)FSM_EVENT_HELPER(nam)
+
+/**
+ *  イベント定義ヘルパ.
+ */
+#define FSM_EVENT(var) \
+    static const struct fsm_event var##_ = FSM_EVENT_HELPER(#var), \
+			          *var = &var##_
+
+/**
+ *  Null 遷移イベント.
+ *
+ *  @ref fsm_transition 後に必ず発生する.
+ */
+extern const struct fsm_event *event_null;
+
+/**
+ *  ガード条件構造体.
+ */
+struct fsm_cond {
+    const char *name;                 /**< 条件名. */
+    bool (*const func)(struct fsm *); /**< ガード条件. */
+};
+
+/**
+ *  ガード条件構造体設定ヘルパ.
+ */
+#define FSM_COND_HELPER(nam, fn) \
+    {                            \
+        .name = (nam),           \
+        .func = (fn)             \
+    }
+
+/**
+ *  ガード条件定義ヘルパ.
+ */
+#define FSM_COND(var, args)                      \
+    static bool var##_func args;                 \
+    static const struct fsm_cond var##_ =        \
+        FSM_COND_HELPER(#var, var##_func),       \
+                                 *var = &var##_; \
+    static bool var##_func args
+
+/**
+ *  遷移アクション構造体.
+ */
+struct fsm_action {
+    const char *name;                 /**< アクション名. */
+    void (*const func)(struct fsm *); /**< 遷移アクション. */
+};
+
+/**
+ *  遷移アクション構造体設定ヘルパ.
+ */
+#define FSM_ACTION_HELPER(nam, fn) \
+    {                              \
+        .name = (nam),             \
+        .func = (fn)               \
+    }
+
+/**
+ *  遷移アクション定義ヘルパ.
+ */
+#define FSM_ACTION(var, args)                      \
+    static void var##_func args;                   \
+    static const struct fsm_action var##_ =        \
+        FSM_ACTION_HELPER(#var, var##_func),       \
+                                   *var = &var##_; \
+    static void var##_func args
 
 /**
  *  遷移構造体.
  */
 struct fsm_trans {
-    const struct fsm_state *from; /**< 起点となる状態. */
-    int event;                    /**< 関連付けるイベント. */
-    bool (*cond)(struct fsm *);   /**< ガード条件. */
-    void (*action)(struct fsm *); /**< イベントアクション */
-    const struct fsm_state *to;   /**< 遷移先の状態 */
+    const struct fsm_state *from;    /**< 起点となる状態. */
+    const struct fsm_event *event;   /**< 関連付けるイベント. */
+    const struct fsm_cond *cond;     /**< ガード条件. */
+    const struct fsm_action *action; /**< イベントアクション */
+    const struct fsm_state *to;      /**< 遷移先の状態 */
 };
 
 /**
@@ -116,7 +197,7 @@ struct fsm_trans {
  *  遷移構造体の初期化子.
  */
 #define FSM_TRANS_INITIALIZER \
-    (struct fsm_trans)FSM_TRANS_HELPER(NULL, -1, NULL, NULL, NULL)
+    (struct fsm_trans)FSM_TRANS_HELPER(NULL, NULL, NULL, NULL, NULL)
 
 /**
  *  遷移対応配列の終端.
@@ -136,7 +217,7 @@ int fsm_term(struct fsm *machine);
 /**
  *  イベントによる状態遷移を実施する.
  */
-void fsm_transition(struct fsm *machine, int event);
+void fsm_transition(struct fsm *machine, const struct fsm_event *event);
 
 /**
  *  現在の状態の do アクティビティを実行する.

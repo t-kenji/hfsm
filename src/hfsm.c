@@ -42,12 +42,20 @@ struct fsm {
 /**
  *  開始状態.
  */
-const struct fsm_state state_start = FSM_STATE_INITIALIZER("start");
+const struct fsm_state state_start_ = FSM_STATE_INITIALIZER("start"),
+                       *state_start = &state_start_;
 
 /**
  *  終了状態.
  */
-static const struct fsm_state state_end = FSM_STATE_INITIALIZER("end");
+static const struct fsm_state state_end_ = FSM_STATE_INITIALIZER("end"),
+                              *state_end = &state_end_;
+
+/**
+ *  Null 遷移イベント.
+ */
+const struct fsm_event event_null_ = FSM_EVENT_INITIALIZER("null"),
+                       *event_null = &event_null_;
 
 /**
  *  指定する状態の変数を取得する.
@@ -189,7 +197,6 @@ static void fsm_change_state(struct fsm *machine,
         assert(src_state != NULL);
         exit_if_can_be(machine, src_state, (src_state->parent == ancestor));
     }
-DEBUG("state: %s -> %s", machine->current->name, new_state->name);
     machine->current = new_state;
     do {
         entry_if_can_be(machine, dest_state, (count == 0));
@@ -215,17 +222,28 @@ DEBUG("state: %s -> %s", machine->current->name, new_state->name);
  *  @return 対応表に条件が一致する項目があった場合は, 状態遷移が行われ, true が返る.
  *          一致する項目がなかった場合は, false が返る.
  */
-static bool fsm_state_transit(struct fsm *machine, const struct fsm_state *state, int event)
+static bool fsm_state_transit(struct fsm *machine,
+                              const struct fsm_state *state,
+                              const struct fsm_event *event)
 {
     int i;
 
     for (i = 0; machine->corresps[i].from != NULL; ++i) {
         const struct fsm_trans *corr = &machine->corresps[i];
         if ((corr->from == state) && (corr->event == event)) {
-            if ((corr->cond == NULL) || corr->cond(machine)) {
+            if ((corr->cond == NULL) || corr->cond->func(machine)) {
                 if (corr->action != NULL) {
-                    corr->action(machine);
+                    corr->action->func(machine);
                 }
+if ((corr->cond == NULL) && (corr->action == NULL)) {
+    DEBUG("state: %s --%s-> %s", corr->from->name, corr->event->name, corr->to->name);
+} else if (corr->action == NULL) {
+    DEBUG("state: %s --%s[%s]-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->to->name);
+} else if (corr->cond == NULL) {
+    DEBUG("state: %s --%s/%s-> %s", corr->from->name, corr->event->name, corr->action->name, corr->to->name);
+} else {
+    DEBUG("state: %s --%s[%s]/%s-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->action->name, corr->to->name);
+}
                 fsm_change_state(machine, corr->to);
             }
             return true;
@@ -262,10 +280,10 @@ struct fsm *fsm_init(const struct fsm_trans *corresps)
         return NULL;
     }
 
-    *machine = FSM_HELPER(&state_start, corresps, src_ancs, dest_ancs);
+    *machine = FSM_HELPER(state_start, corresps, src_ancs, dest_ancs);
 
     /* Null 遷移を行う. */
-    fsm_state_transit(machine, machine->current, EVENT_NULL_TRANSITION);
+    fsm_state_transit(machine, machine->current, event_null);
 
     return machine;
 }
@@ -284,7 +302,7 @@ int fsm_term(struct fsm *machine)
         return -1;
     }
 
-    fsm_change_state(machine, &state_end);
+    fsm_change_state(machine, state_end);
     stack_release(machine->dest_ancestors);
     stack_release(machine->src_ancestors);
     free(machine);
@@ -299,7 +317,7 @@ int fsm_term(struct fsm *machine)
  *  @param      [in]    machine 状態マシン.
  *  @param      [in]    event   発生したイベント.
  */
-void fsm_transition(struct fsm *machine, int event)
+void fsm_transition(struct fsm *machine, const struct fsm_event *event)
 {
     const struct fsm_state *state;
 
@@ -313,7 +331,7 @@ void fsm_transition(struct fsm *machine, int event)
     }
 
     /* Null 遷移を行う. */
-    fsm_state_transit(machine, machine->current, EVENT_NULL_TRANSITION);
+    fsm_state_transit(machine, machine->current, event_null);
 }
 
 /**
