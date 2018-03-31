@@ -3,6 +3,9 @@
  *
  *  @author t-kenji <protect.2501@gmail.com>
  *  @date   2018-03-18 新規作成.
+ *  @copyright  Copyright (c) 2018 t-kenji
+ *
+ *  This code is licensed under the MIT License.
  */
 #include <stdlib.h>
 #include <errno.h>
@@ -254,6 +257,7 @@ if ((corr->cond == NULL) && (corr->action == NULL)) {
 
 /**
  *  @details    開始状態の状態マシンを, 生成する.
+ *              初期化後の状態は @ref state_start となる.
  *
  *  @param      [in]    corresps    状態遷移の対応表.
  *  @return     成功時は, 確保および初期化されたオブジェクトのポインタが返る.
@@ -351,7 +355,7 @@ void fsm_update(struct fsm *machine)
  *  @details    指定状態の固有情報を取得する.
  *
  *  @param      [in]    state   固有情報を取得したい状態.
- *  @param      正常時は, 固有情報のポインタが返る.
+ *  @return     正常時は, 固有情報のポインタが返る.
  *              失敗時は, NULL が返り, errno が適切に設定される.
  */
 void *fsm_get_state_data(const struct fsm_state *state)
@@ -380,7 +384,7 @@ void fsm_current_state(struct fsm *machine, char *name, size_t len)
 }
 
 /**
- *  @details    @machine の状態遷移を収集し, 収集した @ref TREE を @c handler
+ *  @details    @c machine の状態遷移を収集し, 収集した @ref TREE を @c handler
  *              に渡す.
  *              @c handler で任意フォーマットに出力すること.
  *

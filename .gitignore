@@ -5,4 +5,6 @@
 *.a
 *_test
 
+Doxygen.conf
+/doxygen
 /cov-int

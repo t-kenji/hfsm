@@ -5,6 +5,9 @@
  *
  *  @author t-kenji <protect.2501@gmail.com>
  *  @date   2018-03-18 新規作成.
+ *  @copyright  Copyright (c) 2018 t-kenji
+ *
+ *  This code is licensed under the MIT License.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -382,10 +385,6 @@ ssize_t list_count(LIST list)
 /**
  *  @details    @c list の反復子を取得する.
  *
- *  @param      [in]    list    リストオブジェクト.
- *  @return     成功時は, @c list の反復子が返る.
- *              失敗時は, NULL が返り, errno が適切に設定される.
- *  @warning    スレッドセーフではない.
  *  @code
  *  for (ITER iter = list_iter(list);
  *       iter != NULL;
@@ -393,6 +392,11 @@ ssize_t list_count(LIST list)
  *      void *payload = iter_get_payload(iter);
  *  }
  *  @endcode
+ *
+ *  @param      [in]    list    リストオブジェクト.
+ *  @return     成功時は, @c list の反復子が返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
  *  @sa         iter_next, iter_get_payload
  */
 ITER list_iter(LIST list)
@@ -503,10 +507,6 @@ ssize_t stack_count(STACK stack)
 /**
  *  @details    @c stack の反復子を取得する.
  *
- *  @param      [in]    stack   スタックオブジェクト.
- *  @return     成功時は, @c stack の反復子が返る.
- *              失敗時は, NULL が返り, errno が適切に設定される.
- *  @warning    スレッドセーフではない.
  *  @code
  *  for (ITER iter = stack_iter(stack);
  *       iter != NULL;
@@ -514,6 +514,11 @@ ssize_t stack_count(STACK stack)
  *      void *payload = iter_get_payload(iter);
  *  }
  *  @endcode
+ *
+ *  @param      [in]    stack   スタックオブジェクト.
+ *  @return     成功時は, @c stack の反復子が返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
  *  @sa         iter_next, iter_get_payload
  */
 ITER stack_iter(STACK stack)
@@ -619,10 +624,6 @@ ssize_t queue_count(QUEUE que)
 /**
  *  @details    @c que の反復子を取得する.
  *
- *  @param      [in]    que キューオブジェクト.
- *  @return     成功時は, @c que の反復子が返る.
- *              失敗時は, NULL が返り, errno が適切に設定される.
- *  @warning    スレッドセーフではない.
  *  @code
  *  for (ITER iter = queue_iter(que);
  *       iter != NULL;
@@ -630,6 +631,11 @@ ssize_t queue_count(QUEUE que)
  *      void *payload = iter_get_payload(iter);
  *  }
  *  @endcode
+ *
+ *  @param      [in]    que キューオブジェクト.
+ *  @return     成功時は, @c que の反復子が返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
  *  @sa         iter_next, iter_get_payload
  */
 ITER queue_iter(QUEUE que)
@@ -757,10 +763,6 @@ ssize_t set_count(SET set)
 /**
  *  @details    @c set の反復子を取得する.
  *
- *  @param      [in]    set セットオブジェクト.
- *  @return     成功時は, @c set の反復子が返る.
- *              失敗時は, NULL が返り, errno が適切に設定される.
- *  @warning    スレッドセーフではない.
  *  @code
  *  for (ITER iter = set_iter(set;
  *       iter != NULL;
@@ -768,6 +770,11 @@ ssize_t set_count(SET set)
  *      void *payload = iter_get_payload(iter);
  *  }
  *  @endcode
+ *
+ *  @param      [in]    set セットオブジェクト.
+ *  @return     成功時は, @c set の反復子が返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
  *  @sa         iter_next, iter_get_payload
  */
 ITER set_iter(SET set)
@@ -901,7 +908,7 @@ static inline void tree_setup(struct tree *t,
     }
 
     /* root は固定で割り当てる. */
-    /** @TODO root は他の要素と重複しなさそうなデータ部にすること.
+    /** @todo root は他の要素と重複しなさそうなデータ部にすること.
      *  もしくは区別できる仕組みを入れる.
      */
     t->root = tree_pop_released(t);
@@ -1091,11 +1098,6 @@ ssize_t tree_count(TREE tree)
 /**
  *  @details    @c tree の反復子を取得する.
  *
- *  @param      [in]    tree    ツリーオブジェクト.
- *  @return     成功時は, @c tree の反復子が返る.
- *              失敗時は, NULL が返り, errno が適切に設定される.
- *  @remarks    走査は深さ (子要素) 優先で行われる.
- *  @warning    スレッドセーフではない.
  *  @code
  *  for (TREE_ITER iter = tree_iter_get(tree);
  *       iter != NULL;
@@ -1104,6 +1106,12 @@ ssize_t tree_count(TREE tree)
         int age = tree_iter_get_age(iter);
  *  }
  *  @endcode
+ *
+ *  @param      [in]    tree    ツリーオブジェクト.
+ *  @return     成功時は, @c tree の反復子が返る.
+ *              失敗時は, NULL が返り, errno が適切に設定される.
+ *  @remarks    走査は深さ (子要素) 優先で行われる.
+ *  @warning    スレッドセーフではない.
  *  @sa         tree_iter_next, tree_iter_get_payload, tree_iter_get_age
  */
 TREE_ITER tree_iter_get(TREE tree)

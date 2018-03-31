@@ -5,6 +5,9 @@
  *
  *  @author t-kenji <protect.2501@gmail.com>
  *  @date   2018-03-18 新規作成.
+ *  @copyright  Copyright (c) 2018 t-kenji
+ *
+ *  This code is licensed under the MIT License.
  */
 #ifndef __ANTTQ_COLLECTIONS_H__
 #define __ANTTQ_COLLECTIONS_H__

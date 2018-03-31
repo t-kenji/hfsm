@@ -3,6 +3,9 @@
  *
  *  @author t-kenji <protect.2501@gmail.com>
  *  @date   2018-03-19 新規作成.
+ *  @copyright  Copyright (c) 2018 t-kenji
+ *
+ *  This code is licensed under the MIT License.
  */
 #ifndef __HFSM_HFSM_H__
 #define __HFSM_HFSM_H__
@@ -78,8 +81,6 @@ struct fsm_state {
 
 /**
  *  開始状態.
- *
- *  @ref struct hfsm の初期状態となる.
  */
 extern const struct fsm_state *state_start;
 
