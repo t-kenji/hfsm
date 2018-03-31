@@ -8,6 +8,7 @@
 #define __HFSM_HFSM_H__
 
 #include <stdbool.h>
+#include <string.h>
 
 #include "collections.h"
 
@@ -81,6 +82,12 @@ struct fsm_state {
  *  @ref struct hfsm の初期状態となる.
  */
 extern const struct fsm_state *state_start;
+
+/**
+ *  終了状態.
+ */
+extern const struct fsm_state *state_end;
+
 
 /**
  *  イベント構造体.
@@ -205,6 +212,30 @@ struct fsm_trans {
 #define FSM_TRANS_TERMINATOR FSM_TRANS_INITIALIZER
 
 /**
+ *  ダンプ処理の標準ハンドラ.
+ */
+static inline void fsm_dump_state_transition_to_text(TREE tree)
+{
+    TREE_ITER iter;
+
+    for (iter = tree_iter_get(tree);
+         iter != NULL;
+         iter = tree_iter_next(iter)) {
+
+        const struct fsm_state *state =
+            *(const struct fsm_state **)tree_iter_get_payload(iter);
+        int age = tree_iter_get_age(iter);
+        char spacer[128] = {'\0'};
+        for (int i = 0; i < age; ++i) {
+            strncat(spacer, "    ", sizeof(spacer) - (i * 4));
+        }
+        printf("%s%s\n", spacer, state->name);
+    }
+
+    tree_iter_release(iter);
+}
+
+/**
  *  状態マシンを初期化する.
  */
 struct fsm *fsm_init(const struct fsm_trans *corresps);
@@ -233,5 +264,10 @@ void *fsm_get_state_data(const struct fsm_state *state);
  *  現在の状態名を取得する.
  */
 void fsm_current_state(struct fsm *machine, char *name, size_t len);
+
+/**
+ *  状態遷移設定をダンプする.
+ */
+void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE));
 
 #endif /* __HFSM_HFSM_H__ */

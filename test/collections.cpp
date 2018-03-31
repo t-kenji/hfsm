@@ -199,3 +199,165 @@ SCENARIO("キューから要素を取り出せること", "[queue][deq]") {
         queue_release(que);
     }
 }
+
+SCENARIO("ツリーが初期化できること", "[tree][init]") {
+    GIVEN("特になし") {
+        WHEN("ツリーを容量 5 で初期化する") {
+            TREE tree = tree_init(sizeof(int), 5);
+
+            THEN("インスタンスが NULL ではないこと") {
+                REQUIRE(tree != NULL);
+            }
+
+            tree_release(tree);
+        }
+    }
+}
+
+SCENARIO("ツリーに要素が追加できること", "[tree][add]") {
+    GIVEN("ツリーを容量 5 で初期化しておく") {
+        TREE tree = tree_init(sizeof(int), 5);
+
+        WHEN("要素を追加しない") {
+            THEN("ツリーの要素数が 0 であること") {
+                REQUIRE(tree_count(tree) == 0);
+            }
+        }
+
+        WHEN("要素を root に 1 つ追加する") {
+            int a = 0x55;
+            REQUIRE(tree_insert(tree, NULL, &a) != NULL);
+
+            THEN("ツリーの要素数が 1 であること") {
+                REQUIRE(tree_count(tree) == 1);
+            }
+        }
+
+        WHEN("要素を root に 5 つ追加する") {
+            for (int i = 0; i < 5; ++i) {
+                REQUIRE(tree_insert(tree, NULL, &i) != NULL);
+            }
+
+            THEN("ツリーの要素数が 5 であること") {
+                REQUIRE(tree_count(tree) == 5);
+            }
+        }
+
+        WHEN("要素を階層的に 5 つ追加する") {
+            int a = 0, b;
+            REQUIRE(tree_insert(tree, NULL, &a) != NULL);
+            a = 1; b = 0;
+            REQUIRE(tree_insert(tree, &b, &a) != NULL);
+            a = 2; b = 0;
+            REQUIRE(tree_insert(tree, &b, &a) != NULL);
+            a = 3; b = 2;
+            REQUIRE(tree_insert(tree, &b, &a) != NULL);
+            a = 4; b = 3;
+            REQUIRE(tree_insert(tree, &b, &a) != NULL);
+
+            THEN("ツリーの要素数が 5 であること") {
+                REQUIRE(tree_count(tree) == 5);
+            }
+        }
+
+        tree_release(tree);
+    }
+}
+
+SCENARIO("ツリーを反復子で処理できること", "[tree][iterator]") {
+    GIVEN("ツリーを容量 5 で初期化しておく") {
+        TREE tree = tree_init(sizeof(int), 5);
+
+        WHEN("要素を root に 5 つ追加する") {
+            for (int i = 0; i < 5; ++i) {
+                tree_insert(tree, NULL, &i);
+            }
+
+            THEN("反復子でツリーに沿った順に値が取得できること") {
+                TREE_ITER iter = tree_iter_get(tree);
+                REQUIRE(iter != NULL);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 0);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 1);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 2);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 3);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 4);
+            }
+        }
+
+        WHEN("要素を階層的に 5 つ追加する (pat 1)") {
+            int a = 0, b;
+            tree_insert(tree, NULL, &a);
+            a = 1; b = 0;
+            tree_insert(tree, &b, &a);
+            a = 2; b = 0;
+            tree_insert(tree, &b, &a);
+            a = 3; b = 2;
+            tree_insert(tree, &b, &a);
+            a = 4; b = 3;
+            tree_insert(tree, &b, &a);
+
+            THEN("反復子でツリーに沿った順に値が取得できること") {
+                TREE_ITER iter = tree_iter_get(tree);
+                REQUIRE(iter != NULL);
+
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 0);
+                REQUIRE(tree_iter_get_age(iter) == 1);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 1);
+                REQUIRE(tree_iter_get_age(iter) == 2);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 2);
+                REQUIRE(tree_iter_get_age(iter) == 2);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 3);
+                REQUIRE(tree_iter_get_age(iter) == 3);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 4);
+                REQUIRE(tree_iter_get_age(iter) == 4);
+
+                tree_iter_release(iter);
+            }
+        }
+
+        WHEN("要素を階層的に 5 つ追加する (pat 2)") {
+            int a = 0, b;
+            tree_insert(tree, NULL, &a);
+            a = 1; b = 0;
+            tree_insert(tree, &b, &a);
+            a = 2; b = 0;
+            tree_insert(tree, &b, &a);
+            a = 3; b = 2;
+            tree_insert(tree, &b, &a);
+            a = 4; b = 1;
+            tree_insert(tree, &b, &a);
+
+            THEN("反復子でツリーに沿った順に値が取得できること") {
+                TREE_ITER iter = tree_iter_get(tree);
+                REQUIRE(iter != NULL);
+
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 0);
+                REQUIRE(tree_iter_get_age(iter) == 1);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 1);
+                REQUIRE(tree_iter_get_age(iter) == 2);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 4);
+                REQUIRE(tree_iter_get_age(iter) == 3);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 2);
+                REQUIRE(tree_iter_get_age(iter) == 2);
+                iter = tree_iter_next(iter);
+                REQUIRE(*(int *)tree_iter_get_payload(iter) == 3);
+                REQUIRE(tree_iter_get_age(iter) == 3);
+
+                tree_iter_release(iter);
+            }
+        }
+
+        tree_release(tree);
+    }
+}

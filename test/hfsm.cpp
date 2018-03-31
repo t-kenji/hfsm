@@ -10,6 +10,7 @@
 
 extern "C" {
 #include "debug.h"
+#include "collections.h"
 #include "hfsm.h"
 }
 
@@ -20,6 +21,22 @@ FSM_STATE(state_root_with_no_handler2, NULL, NULL, NULL, NULL, NULL);
 FSM_STATE(state_root_with_no_handler3, NULL, NULL, NULL, NULL, NULL);
 FSM_STATE(state_root_with_no_handler4, NULL, NULL, NULL, NULL, NULL);
 FSM_STATE(state_root_with_no_handler5, NULL, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1, NULL, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2, NULL, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_3, NULL, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_1, state_nested_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2, state_nested_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_1, state_nested_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2, state_nested_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_3, state_nested_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_4, state_nested_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_3_1, state_nested_3, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_1_1, state_nested_1_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2_1, state_nested_1_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2_2, state_nested_1_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1, state_nested_2_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1_1, state_nested_2_2_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1_1_1, state_nested_2_2_1_1, NULL, NULL, NULL, NULL);
 
 static bool entry_only_param = false;
 static void entry_only_entry(struct fsm *machine, void *data, bool cmpl)
@@ -255,6 +272,148 @@ SCENARIO("ガード条件により遷移がキャンセル中止されること"
             }
         }
 
+
+        fsm_term(machine);
+    }
+}
+
+SCENARIO("状態遷移の定義をダンプする", "[fsm][dump]") {
+    GIVEN("1 つの状態から複数の遷移がある定義を行う") {
+        const struct fsm_trans corresps[] = {
+            FSM_TRANS_HELPER(state_start, event_null, NULL, NULL, state_nested_1),
+            FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_nested_2),
+            FSM_TRANS_HELPER(state_start, event_2, NULL, NULL, state_nested_3),
+            FSM_TRANS_HELPER(state_nested_1, event_3, NULL, NULL, state_nested_2),
+            FSM_TRANS_HELPER(state_nested_1, event_4, NULL, NULL, state_nested_3),
+            FSM_TRANS_TERMINATOR
+        };
+        struct fsm *machine = fsm_init(corresps);
+        REQUIRE(machine != NULL);
+
+        WHEN("状態遷移をダンプする") {
+            static LIST list;
+
+            class handler {
+                public: static void run(TREE tree) {
+                    TREE_ITER iter;
+
+
+                    for (iter = tree_iter_get(tree); iter != NULL; iter = tree_iter_next(iter)) {
+                        const struct fsm_state *state =
+                            *(const struct fsm_state **)tree_iter_get_payload(iter);
+                        list_add(list, (void *)&state);
+                    }
+
+                    tree_iter_release(iter);
+                }
+            };
+
+            list = list_init(sizeof(struct fsm_state *), 30);
+            fsm_dump_state_transition(machine, handler::run);
+
+            THEN("定義内容と一致すること") {
+                ITER iter = list_iter(list);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_start);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_3);
+            }
+        }
+
+        fsm_term(machine);
+    }
+
+    GIVEN("ネストした状態の遷移がある定義を行う") {
+        const struct fsm_trans corresps[] = {
+            FSM_TRANS_HELPER(state_start, event_null, NULL, NULL, state_nested_1),
+            FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_nested_2),
+            FSM_TRANS_HELPER(state_start, event_2, NULL, NULL, state_nested_3),
+            FSM_TRANS_HELPER(state_nested_1, event_3, NULL, NULL, state_nested_2),
+            FSM_TRANS_HELPER(state_nested_1, event_4, NULL, NULL, state_nested_3),
+            FSM_TRANS_HELPER(state_nested_1, event_1, NULL, NULL, state_nested_2_1),
+            FSM_TRANS_HELPER(state_nested_1, event_2, NULL, NULL, state_nested_2_2),
+            FSM_TRANS_HELPER(state_nested_1, event_5, NULL, NULL, state_nested_2_2_1_1_1),
+            FSM_TRANS_HELPER(state_nested_2, event_3, NULL, NULL, state_nested_1_1),
+            FSM_TRANS_HELPER(state_nested_2, event_4, NULL, NULL, state_nested_1_2),
+            FSM_TRANS_HELPER(state_nested_2, event_5, NULL, NULL, state_nested_3),
+            FSM_TRANS_HELPER(state_nested_1_1, event_1, NULL, NULL, state_nested_2_3),
+            FSM_TRANS_HELPER(state_nested_1_1, event_2, NULL, NULL, state_nested_2_4),
+            FSM_TRANS_HELPER(state_nested_2_1, event_1, NULL, NULL, state_nested_3_1),
+            FSM_TRANS_HELPER(state_nested_2_1, event_2, NULL, NULL, state_nested_1_1_1),
+            FSM_TRANS_HELPER(state_nested_2_1, event_3, NULL, NULL, state_nested_1_2_1),
+            FSM_TRANS_HELPER(state_nested_2_2, event_1, NULL, NULL, state_nested_1_2_2),
+            FSM_TRANS_HELPER(state_nested_2_2, event_2, NULL, NULL, state_nested_1_1),
+            FSM_TRANS_HELPER(state_nested_3_1, event_1, NULL, NULL, state_nested_1_1),
+            FSM_TRANS_HELPER(state_nested_2_2_1_1_1, event_1, NULL, NULL, state_end),
+            FSM_TRANS_TERMINATOR
+        };
+        struct fsm *machine = fsm_init(corresps);
+        REQUIRE(machine != NULL);
+
+        WHEN("状態遷移をダンプする") {
+            static LIST list;
+
+            class handler {
+                public: static void run(TREE tree) {
+                    TREE_ITER iter;
+
+                    for (iter = tree_iter_get(tree); iter != NULL; iter = tree_iter_next(iter)) {
+                        const struct fsm_state *state =
+                            *(const struct fsm_state **)tree_iter_get_payload(iter);
+                        list_add(list, (void *)&state);
+                    }
+
+                    tree_iter_release(iter);
+                }
+            };
+
+            list = list_init(sizeof(struct fsm_state *), 30);
+            fsm_dump_state_transition(machine, handler::run);
+
+            THEN("定義内容と一致すること") {
+                ITER iter = list_iter(list);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_start);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1_1_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1_2);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1_2_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_1_2_2);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_2);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_2_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_2_1_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_2_1_1_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_3);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_2_4);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_3);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_nested_3_1);
+                iter = iter_next(iter);
+                REQUIRE(*(const struct fsm_state **)iter_get_payload(iter) == state_end);
+            }
+
+            list_release(list);
+        }
 
         fsm_term(machine);
     }

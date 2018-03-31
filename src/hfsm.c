@@ -5,7 +5,6 @@
  *  @date   2018-03-18 新規作成.
  */
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -48,8 +47,8 @@ const struct fsm_state state_start_ = FSM_STATE_INITIALIZER("start"),
 /**
  *  終了状態.
  */
-static const struct fsm_state state_end_ = FSM_STATE_INITIALIZER("end"),
-                              *state_end = &state_end_;
+const struct fsm_state state_end_ = FSM_STATE_INITIALIZER("end"),
+                      *state_end = &state_end_;
 
 /**
  *  Null 遷移イベント.
@@ -378,4 +377,67 @@ void fsm_current_state(struct fsm *machine, char *name, size_t len)
 {
     strncpy(name, machine->current->name, len);
     name[len - 1] = '\0';
+}
+
+/**
+ *  @details    @machine の状態遷移を収集し, 収集した @ref TREE を @c handler
+ *              に渡す.
+ *              @c handler で任意フォーマットに出力すること.
+ *
+ *  @param      [in]    machine 状態マシン.
+ *  @param      [in]    handler 出力処理のハンドラ.
+ */
+void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
+{
+    SET states = set_init(sizeof(struct fsm_state *), 30);
+    const struct fsm_state *state;
+    TREE tree;
+    QUEUE reserve;
+
+    if (handler == NULL) {
+        return;
+    }
+
+    /* すべての状態を収集する. */
+    for (int i = 0; machine->corresps[i].from != NULL; ++i) {
+        const struct fsm_trans *corr = &machine->corresps[i];
+        for (state = corr->from; state != NULL; state = state->parent) {
+            set_add(states, (void *)&state);
+        }
+        for (state = corr->to; state != NULL; state = state->parent) {
+            set_add(states, (void *)&state);
+        }
+    }
+
+    /* 状態の親子関係を多分木に変換する.
+     * 収集した状態は順不同であり, 多分木に追加する際に必ず親が追加されている
+     * とは限らない.
+     * その為, 追加に失敗した要素はキューに追加しておき, リトライする.
+     */
+    tree = tree_init(sizeof(struct fsm_state *), set_count(states));
+    reserve = queue_init(sizeof(struct fsm_state *), set_count(states));
+    for (ITER it = set_iter(states); it != NULL; it = iter_next(it)) {
+        state = *(const struct fsm_state **)iter_get_payload(it);
+        const struct fsm_state * const *parent =
+            (state->parent != NULL) ? &state->parent : NULL;
+        if (tree_insert(tree, (void *)parent, (void *)&state) == NULL) {
+            queue_enq(reserve, (void *)&state);
+        }
+    }
+    set_release(states);
+    while (queue_count(reserve) > 0) {
+        if (queue_deq(reserve, &state) < 0) {
+            break;
+        }
+        const struct fsm_state * const *parent =
+            (state->parent != NULL) ? &state->parent : NULL;
+        if (tree_insert(tree, (void *)parent, (void *)&state) == NULL) {
+            queue_enq(reserve, (void *)&state);
+        }
+    }
+    queue_release(reserve);
+
+    handler(tree);
+
+    tree_release(tree);
 }
