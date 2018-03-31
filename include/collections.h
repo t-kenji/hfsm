@@ -65,6 +65,11 @@ void *list_insert(LIST list, int index, void *payload);
 int list_remove(LIST list, ITER iter);
 
 /**
+ *  リストのデータ部のサイズを取得する.
+ */
+ssize_t list_payload_bytes(LIST list);
+
+/**
  *  リストの長さを取得する.
  */
 ssize_t list_count(LIST list);
@@ -73,6 +78,11 @@ ssize_t list_count(LIST list);
  *  リストの反復子を取得する.
  */
 ITER list_iter(LIST list);
+
+/**
+ *  リストを配列に変換する.
+ */
+int list_to_array(LIST list, void **array, size_t *count);
 
 /**
  *  汎用スタック型.
@@ -148,6 +158,11 @@ int queue_deq(QUEUE que, void *payload);
  *  キューの長さを取得する.
  */
 ssize_t queue_count(QUEUE que);
+
+/**
+ *  キューの反復子を取得する.
+ */
+ITER queue_iter(QUEUE que);
 
 /**
  *  キューを配列に変換する.

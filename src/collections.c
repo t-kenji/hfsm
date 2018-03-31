@@ -363,6 +363,26 @@ int list_remove(LIST list, ITER iter)
 }
 
 /**
+ *  @details    @c list のデータ部のサイズを取得する.
+ *
+ *  @param      [in]    list    リストオブジェクト.
+ *  @return     成功時は, @c list のデータ部のサイズが返る.
+ *              失敗時は, -1 が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
+ */
+ssize_t list_payload_bytes(LIST list)
+{
+    struct list *l = (struct list *)list;
+
+    if (l == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return l->payload_bytes;
+}
+
+/**
  *  @details    @c list に追加されている要素の数を返す.
  *
  *  @param      [in]    list    リストオブジェクト.
@@ -407,6 +427,40 @@ ITER list_iter(LIST list)
         return NULL;
     }
     return (ITER)l->root;
+}
+
+/**
+ *  @details    @c list に積まれた要素を配列にコピーする.
+ *
+ *  @param      [in]    list    リストオブジェクト.
+ *  @param      [out]   array   確保した配列のポインタ.
+ *  @param      [out]   count   要素の数.
+ *  @return     成功時は, 0 が返り, @c array に確保された配列のポインタを
+ *              設定する.
+ *              失敗時は, -1 が返り, errno が適切に設定される.
+ *  @warning    スレッドセーフではない.
+ */
+
+int list_to_array(LIST list, void **array, size_t *count)
+{
+    struct list *l = (struct list *)list;
+    ITER iter;
+    void *buf;
+
+    if ((l == NULL) || (array == NULL) || (count == 0)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    *count = 0;
+    *array = buf = malloc(l->payload_bytes * l->count);
+    for (iter = list_iter((LIST)l); iter != NULL; iter = iter_next(iter)) {
+        memcpy(buf, iter_get_payload(iter), l->payload_bytes);
+        buf += l->payload_bytes;
+        ++(*count);
+    }
+
+    return 0;
 }
 
 /**
@@ -657,24 +711,7 @@ ITER queue_iter(QUEUE que)
 
 int queue_to_array(QUEUE que, void **array, size_t *count)
 {
-    struct list *l = (struct list *)que;
-    ITER iter;
-    void *buf;
-
-    if ((l == NULL) || (array == NULL) || (count == 0)) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    *count = 0;
-    *array = buf = malloc(l->payload_bytes * l->count);
-    for (iter = list_iter((LIST)l); iter != NULL; iter = iter_next(iter)) {
-        memcpy(buf, iter_get_payload(iter), l->payload_bytes);
-        buf += l->payload_bytes;
-        ++(*count);
-    }
-
-    return 0;
+    return list_to_array((LIST)que, array, count);
 }
 
 /**
@@ -1126,17 +1163,19 @@ TREE_ITER tree_iter_get(TREE tree)
     *it = TREE_ITER_INITIALIZER;
     it->fringe = stack_init(sizeof(struct tree_node *), t->capacity);
     if (it->fringe == NULL) {
+        free(it);
         return NULL;
     }
 
-    if (t->root->next_sibling != NULL) {
-        stack_push(it->fringe, &t->root->next_sibling);
-    }
     if (t->root->first_child != NULL) {
         stack_push(it->fringe, &t->root->first_child);
     }
 
-    return tree_iter_next((TREE_ITER)it);
+    if (tree_iter_next((TREE_ITER)it) == NULL) {
+        tree_iter_release((TREE_ITER)it);
+        it = NULL;
+    }
+    return (TREE_ITER)it;
 }
 
 /**
@@ -1176,6 +1215,7 @@ TREE_ITER tree_iter_next(TREE_ITER iter)
     }
 
     if (stack_count(it->fringe) == 0) {
+        errno = ENOENT;
         return NULL;
     }
 
