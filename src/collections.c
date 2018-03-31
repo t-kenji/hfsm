@@ -447,13 +447,17 @@ int list_to_array(LIST list, void **array, size_t *count)
     ITER iter;
     void *buf;
 
-    if ((l == NULL) || (array == NULL) || (count == 0)) {
+    if ((l == NULL) || (array == NULL) || (count == NULL)) {
         errno = EINVAL;
         return -1;
     }
 
+    buf = malloc(l->payload_bytes * l->count);
+    if (buf == NULL) {
+        return -1;
+    }
+    *array = buf;
     *count = 0;
-    *array = buf = malloc(l->payload_bytes * l->count);
     for (iter = list_iter((LIST)l); iter != NULL; iter = iter_next(iter)) {
         memcpy(buf, iter_get_payload(iter), l->payload_bytes);
         buf += l->payload_bytes;

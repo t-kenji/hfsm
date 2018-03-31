@@ -393,7 +393,7 @@ void fsm_current_state(struct fsm *machine, char *name, size_t len)
  */
 void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
 {
-    SET states = set_init(sizeof(struct fsm_state *), 30);
+    SET states;
     const struct fsm_state *state;
     TREE tree;
     QUEUE reserve;
@@ -403,6 +403,7 @@ void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
     }
 
     /* すべての状態を収集する. */
+    states = set_init(sizeof(struct fsm_state *), 30);
     for (int i = 0; machine->corresps[i].from != NULL; ++i) {
         const struct fsm_trans *corr = &machine->corresps[i];
         for (state = corr->from; state != NULL; state = state->parent) {
