@@ -7,6 +7,9 @@
  *
  *  This code is licensed under the MIT License.
  */
+/** @example    air_conditioner.c
+ *  エアコンをテーマにした状態遷移の実装例.
+ */
 #ifndef __HFSM_HFSM_H__
 #define __HFSM_HFSM_H__
 
@@ -18,10 +21,16 @@
 struct fsm_trans;
 struct fsm;
 
+/** @addtogroup cat_hfsm 階層型有限状態マシン
+ *  階層型有限状態マシンを構成するモジュール.
+ *  @{
+ */
+
 /**
  *  状態変数構造体.
  */
 struct fsm_state_variable {
+    const struct fsm_state *parent;  /**< 親状態. */
     const struct fsm_state *history; /**< 履歴状態. */
     void *data;                      /**< 状態固有情報. */
 };
@@ -31,6 +40,7 @@ struct fsm_state_variable {
  */
 #define FSM_STATE_VARIABLE_INITIALIZER \
     (struct fsm_state_variable){       \
+        .parent = NULL,                \
         .history = NULL,               \
         .data = NULL                   \
     }
@@ -40,7 +50,6 @@ struct fsm_state_variable {
  */
 struct fsm_state {
     const char *name;                                 /**< 状態名. */
-    const struct fsm_state * const parent;            /**< 親状態. */
     struct fsm_state_variable *variable;              /**< 状態変数. */
 
     void (* const entry)(struct fsm *, void *, bool); /**  entry アクション. */
@@ -51,32 +60,32 @@ struct fsm_state {
 /**
  *  状態構造体設定ヘルパ.
  */
-#define FSM_STATE_HELPER(nam, prnt, var, ent, exe, exi) \
-    {                                                   \
-        .name = (nam),                                  \
-        .parent = (prnt),                               \
-        .variable = (var),                              \
-        .entry = (ent),                                 \
-        .exec = (exe),                                  \
-        .exit = (exi)                                   \
+#define FSM_STATE_HELPER(nam, var, ent, exe, exi) \
+    {                                             \
+        .name = (nam),                            \
+        .variable = (var),                        \
+        .entry = (ent),                           \
+        .exec = (exe),                            \
+        .exit = (exi)                             \
     }
 
 /**
  *  状態構造体初期化子.
  */
 #define FSM_STATE_INITIALIZER(nam) \
-    (struct fsm_state)FSM_STATE_HELPER((nam), NULL, NULL, NULL, NULL, NULL)
+    (struct fsm_state)FSM_STATE_HELPER((nam), NULL, NULL, NULL, NULL)
 
 /**
  *  状態定義ヘルパ.
  */
-#define FSM_STATE(var, prnt, dat, ent, exe, exi)                         \
-    static struct fsm_state_variable var##_var = {                       \
-        .history = NULL,                                                 \
-        .data = (dat)                                                    \
-    };                                                                   \
-    static const struct fsm_state var##_ =                               \
-        FSM_STATE_HELPER(#var, (prnt), &var##_var, (ent), (exe), (exi)), \
+#define FSM_STATE(var, dat, ent, exe, exi)                       \
+    static struct fsm_state_variable var##_var = {               \
+        .parent = NULL,                                          \
+        .history = NULL,                                         \
+        .data = (dat)                                            \
+    };                                                           \
+    static const struct fsm_state var##_ =                       \
+        FSM_STATE_HELPER(#var, &var##_var, (ent), (exe), (exi)), \
                                   *var = &var##_
 
 /**
@@ -113,9 +122,9 @@ struct fsm_event {
 /**
  *  イベント定義ヘルパ.
  */
-#define FSM_EVENT(var) \
+#define FSM_EVENT(var)                                             \
     static const struct fsm_event var##_ = FSM_EVENT_HELPER(#var), \
-			          *var = &var##_
+                                  *var = &var##_
 
 /**
  *  Null 遷移イベント.
@@ -213,6 +222,36 @@ struct fsm_trans {
 #define FSM_TRANS_TERMINATOR FSM_TRANS_INITIALIZER
 
 /**
+ *  関係性構造体.
+ */
+struct fsm_rels {
+    const struct fsm_state *oneself; /**< 基準となる状態. */
+    const struct fsm_state *parent;  /**< 基準状態の親. */
+    bool is_default;                 /**< 履歴状態のデフォルトとするか. */
+};
+
+/**
+ *  関係性構造体の設定ヘルパ.
+ */
+#define FSM_RELS_HELPER(s, p, d) \
+    {                            \
+        .oneself = (s),          \
+        .parent = (p),           \
+        .is_default = (d)        \
+    }
+
+/**
+ *  関係性構造体の初期化子.
+ */
+#define FSM_RELS_INITIALIZER \
+    (struct fsm_rels)FSM_RELS_HELPER(NULL, NULL, false)
+
+/**
+ *  関係性配列の終端.
+ */
+#define FSM_RELS_TERMINATOR FSM_RELS_INITIALIZER
+
+/**
  *  ダンプ処理の標準ハンドラ.
  */
 static inline void fsm_dump_state_transition_to_text(TREE tree)
@@ -239,7 +278,8 @@ static inline void fsm_dump_state_transition_to_text(TREE tree)
 /**
  *  状態マシンを初期化する.
  */
-struct fsm *fsm_init(const struct fsm_trans *corresps);
+struct fsm *fsm_init(const struct fsm_rels *rels,
+                     const struct fsm_trans *corresps);
 
 /**
  *  状態マシンを破棄する.
@@ -270,5 +310,7 @@ void fsm_current_state(struct fsm *machine, char *name, size_t len);
  *  状態遷移設定をダンプする.
  */
 void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE));
+
+/** @} */
 
 #endif /* __HFSM_HFSM_H__ */

@@ -1,9 +1,9 @@
 # configuration for hfsm sample implementasion.
 
 NAME = hfsm
-MAJOR_VERSION = 0
+MAJOR_VERSION = 1
 MINOR_VERSION = 0
-REVISION = 1
+REVISION = 0
 VERSION = $(MAJOR_VERSION).$(MINOR_VERSION).$(REVISION)
 
 NODEBUG = 0

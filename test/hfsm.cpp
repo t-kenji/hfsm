@@ -16,27 +16,27 @@ extern "C" {
 
 using Catch::Matchers::Equals;
 
-FSM_STATE(state_root_with_no_handler, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_root_with_no_handler2, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_root_with_no_handler3, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_root_with_no_handler4, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_root_with_no_handler5, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_3, NULL, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1_1, state_nested_1, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1_2, state_nested_1, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_1, state_nested_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_2, state_nested_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_3, state_nested_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_4, state_nested_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_3_1, state_nested_3, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1_1_1, state_nested_1_1, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1_2_1, state_nested_1_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_1_2_2, state_nested_1_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_2_1, state_nested_2_2, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_2_1_1, state_nested_2_2_1, NULL, NULL, NULL, NULL);
-FSM_STATE(state_nested_2_2_1_1_1, state_nested_2_2_1_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_root_with_no_handler, NULL, NULL, NULL, NULL);
+FSM_STATE(state_root_with_no_handler2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_root_with_no_handler3, NULL, NULL, NULL, NULL);
+FSM_STATE(state_root_with_no_handler4, NULL, NULL, NULL, NULL);
+FSM_STATE(state_root_with_no_handler5, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_3, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_3, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_4, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_3_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_1_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_1_2_2, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1_1, NULL, NULL, NULL, NULL);
+FSM_STATE(state_nested_2_2_1_1_1, NULL, NULL, NULL, NULL);
 
 static bool entry_only_param = false;
 static void entry_only_entry(struct fsm *machine, void *data, bool cmpl)
@@ -44,7 +44,7 @@ static void entry_only_entry(struct fsm *machine, void *data, bool cmpl)
     bool *called = (bool *)data;
     *called = true;
 }
-FSM_STATE(state_entry_only, NULL, &entry_only_param, entry_only_entry, NULL, NULL);
+FSM_STATE(state_entry_only, &entry_only_param, entry_only_entry, NULL, NULL);
 
 FSM_EVENT(event_1);
 FSM_EVENT(event_2);
@@ -67,7 +67,7 @@ FSM_ACTION(action_only_action, (struct fsm *machine))
 SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
     GIVEN("特になし") {
         WHEN("状態遷移なしで状態マシンを初期化する") {
-            struct fsm *machine = fsm_init(NULL);
+            struct fsm *machine = fsm_init(NULL, NULL);
 
             THEN("戻り値が NULL となること") {
                 REQUIRE(machine == NULL);
@@ -81,7 +81,7 @@ SCENARIO("状態マシンが初期化できること", "[fsm][init]") {
                 FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_root_with_no_handler),
                 FSM_TRANS_TERMINATOR
             };
-            struct fsm *machine = fsm_init(corresps);
+            struct fsm *machine = fsm_init(NULL, corresps);
 
             THEN("戻り値が非 NULL となること") {
                 REQUIRE(machine != NULL);
@@ -98,7 +98,7 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
             FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを発生させる") {
@@ -134,7 +134,7 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
             FSM_TRANS_HELPER(state_root_with_no_handler3, event_4, NULL, NULL, state_root_with_no_handler4),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを順に発生させる") {
@@ -175,7 +175,7 @@ SCENARIO("状態遷移できること", "[fsm][trans]") {
             FSM_TRANS_HELPER(state_root_with_no_handler3, event_2, NULL, NULL, state_root_with_no_handler4),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを順に発生させる") {
@@ -205,7 +205,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
             FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_entry_only),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを発生させる") {
@@ -225,7 +225,7 @@ SCENARIO("遷移時にアクションが呼び出されること", "[fsm][action
             FSM_TRANS_HELPER(state_start, event_1, NULL, action_only_action, state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移にあるイベントを発生させる") {
@@ -247,7 +247,7 @@ SCENARIO("ガード条件により遷移がキャンセル中止されること"
             FSM_TRANS_HELPER(state_start, event_1, cond_only_cond, NULL, state_root_with_no_handler),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("ガード条件を満たす状態で遷移を行う") {
@@ -287,7 +287,7 @@ SCENARIO("状態遷移の定義をダンプする", "[fsm][dump]") {
             FSM_TRANS_HELPER(state_nested_1, event_4, NULL, NULL, state_nested_3),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(NULL, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移をダンプする") {
@@ -327,6 +327,22 @@ SCENARIO("状態遷移の定義をダンプする", "[fsm][dump]") {
     }
 
     GIVEN("ネストした状態の遷移がある定義を行う") {
+        const struct fsm_rels rels[] = {
+            FSM_RELS_HELPER(state_nested_1_1, state_nested_1, true),
+            FSM_RELS_HELPER(state_nested_1_2, state_nested_1, false),
+            FSM_RELS_HELPER(state_nested_2_1, state_nested_2, true),
+            FSM_RELS_HELPER(state_nested_2_2, state_nested_2, false),
+            FSM_RELS_HELPER(state_nested_2_3, state_nested_2, false),
+            FSM_RELS_HELPER(state_nested_2_4, state_nested_2, false),
+            FSM_RELS_HELPER(state_nested_3_1, state_nested_3, true),
+            FSM_RELS_HELPER(state_nested_1_1_1, state_nested_1_1, true),
+            FSM_RELS_HELPER(state_nested_1_2_1, state_nested_1_2, true),
+            FSM_RELS_HELPER(state_nested_1_2_2, state_nested_1_2, false),
+            FSM_RELS_HELPER(state_nested_2_2_1, state_nested_2_2, true),
+            FSM_RELS_HELPER(state_nested_2_2_1_1, state_nested_2_2_1, true),
+            FSM_RELS_HELPER(state_nested_2_2_1_1_1, state_nested_2_2_1_1, true),
+            FSM_RELS_TERMINATOR
+        };
         const struct fsm_trans corresps[] = {
             FSM_TRANS_HELPER(state_start, event_null, NULL, NULL, state_nested_1),
             FSM_TRANS_HELPER(state_start, event_1, NULL, NULL, state_nested_2),
@@ -350,7 +366,7 @@ SCENARIO("状態遷移の定義をダンプする", "[fsm][dump]") {
             FSM_TRANS_HELPER(state_nested_2_2_1_1_1, event_1, NULL, NULL, state_end),
             FSM_TRANS_TERMINATOR
         };
-        struct fsm *machine = fsm_init(corresps);
+        struct fsm *machine = fsm_init(rels, corresps);
         REQUIRE(machine != NULL);
 
         WHEN("状態遷移をダンプする") {

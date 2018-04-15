@@ -31,5 +31,5 @@ run clang static analyer
 ------------------------
 
 ```
-$ scan-build --use-cc=`which clang` make NODEBUG=1 EXTRA_CFLAGS=-fblocks EXTRA_LIBS=-lBlocksRuntime
+$ scan-build make NODEBUG=1
 ```

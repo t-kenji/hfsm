@@ -68,7 +68,7 @@ const struct fsm_event event_null_ = FSM_EVENT_INITIALIZER("null"),
  *  @param  [in]    state   状態.
  *  @return 変数が設定されている場合は, @c state の変数のポインタが返る.
  *          設定されていない場合は, 固定の空変数のポインタが返る.
- *  @pre    state != NULL
+ *  @pre    @c state の非 NULL は呼び出し側で保証すること.
  */
 static inline struct fsm_state_variable *get_state_variable(const struct fsm_state *state)
 {
@@ -86,8 +86,8 @@ static inline struct fsm_state_variable *get_state_variable(const struct fsm_sta
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   遷移先の状態.
  *  @param  [in]    cmpl    遷移完了.
- *  @pre    machine != NULL
- *  @pre    state != NULL
+ *  @pre    @c machine の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c state の非 NULL は呼び出し側で保証すること.
  */
 static inline void entry_if_can_be(struct fsm *machine,
                                    const struct fsm_state *state,
@@ -104,7 +104,7 @@ static inline void entry_if_can_be(struct fsm *machine,
  *  do アクティビティが設定されていない場合は何もしない.
  *
  *  @param  [in]    machine 状態マシン.
- *  @pre    machine != NULL
+ *  @pre    @c machine の非 NULL は呼び出し側で保証すること.
  */
 static inline void exec_if_can_be(struct fsm *machine)
 {
@@ -125,18 +125,20 @@ static inline void exec_if_can_be(struct fsm *machine)
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   遷移元の状態.
  *  @param  [in]    cmpl    遷移完了.
- *  @pre    machine != NULL
- *  @pre    state != NULL
+ *  @pre    @c machine の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c state の非 NULL は呼び出し側で保証すること.
  */
 static inline void exit_if_can_be(struct fsm *machine,
                                   const struct fsm_state *state,
                                   bool cmpl)
 {
+    const struct fsm_state *parent = get_state_variable(state)->parent;
+
     if (state->exit != NULL) {
         state->exit(machine, get_state_variable(state)->data, cmpl);
     }
-    if (state->parent != NULL) {
-        get_state_variable(state->parent)->history = state;
+    if (parent != NULL) {
+        get_state_variable(parent)->history = state;
     }
 }
 
@@ -145,8 +147,8 @@ static inline void exit_if_can_be(struct fsm *machine,
  *
  *  @param  [in,out]    machine     状態マシン.
  *  @param  [in]        new_state   新しい状態.
- *  @pre    machine != NULL
- *  @pre    new_state != NULL
+ *  @pre    @c machine は非 NULL は呼び出し側で保証すること.
+ *  @pre    @c new_state は非 NULL は呼び出し側で保証すること.
  */
 static void fsm_change_state(struct fsm *machine,
                              const struct fsm_state *new_state)
@@ -173,14 +175,14 @@ static void fsm_change_state(struct fsm *machine,
     stack_clear(src_ancs);
     for (src_state = machine->current;
          src_state != NULL;
-         src_state = src_state->parent) {
+         src_state = get_state_variable(src_state)->parent) {
 
         stack_push(src_ancs, (void *)&src_state);
     }
     stack_clear(dest_ancs);
     for (dest_state = new_state;
          dest_state != NULL;
-         dest_state = dest_state->parent) {
+         dest_state = get_state_variable(dest_state)->parent) {
 
         stack_push(dest_ancs, (void *)&dest_state);
     }
@@ -190,14 +192,14 @@ static void fsm_change_state(struct fsm *machine,
         count = stack_pop(dest_ancs, &dest_state);
     } while (src_state == dest_state);
     assert(dest_state != NULL);
-    ancestor = (src_state != NULL) ? src_state->parent : machine->current;
+    ancestor = (src_state != NULL) ? get_state_variable(src_state)->parent : machine->current;
 
     for (src_state = machine->current;
          src_state != ancestor;
-         src_state = src_state->parent) {
+         src_state = get_state_variable(src_state)->parent) {
 
         assert(src_state != NULL);
-        exit_if_can_be(machine, src_state, (src_state->parent == ancestor));
+        exit_if_can_be(machine, src_state, (get_state_variable(src_state)->parent == ancestor));
     }
     machine->current = new_state;
     do {
@@ -217,12 +219,16 @@ static void fsm_change_state(struct fsm *machine,
  *  遷移にガード条件が設定されている場合は, 条件を満たさない場合は
  *  遷移は行わない.
  *  遷移にアクションが設定されている場合は, アクションを実行後に遷移を行う.
+ *  遷移先が NULL の場合は内部遷移となる.
  *
  *  @param  [in]    machine 状態マシン.
  *  @param  [in]    state   起点となる状態.
  *  @param  [in]    event   発生したイベント.
  *  @return 対応表に条件が一致する項目があった場合は, 状態遷移が行われ, true が返る.
  *          一致する項目がなかった場合は, false が返る.
+ *  @pre    @c machine の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c state の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c event の非 NULL は呼び出し側で保証すること.
  */
 static bool fsm_state_transit(struct fsm *machine,
                               const struct fsm_state *state,
@@ -237,18 +243,33 @@ static bool fsm_state_transit(struct fsm *machine,
                 if (corr->action != NULL) {
                     corr->action->func(machine);
                 }
-if ((corr->cond == NULL) && (corr->action == NULL)) {
-    DEBUG("state: %s --%s-> %s", corr->from->name, corr->event->name, corr->to->name);
-} else if (corr->action == NULL) {
-    DEBUG("state: %s --%s[%s]-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->to->name);
-} else if (corr->cond == NULL) {
-    DEBUG("state: %s --%s/%s-> %s", corr->from->name, corr->event->name, corr->action->name, corr->to->name);
+if (corr->to == NULL) {
+    if ((corr->cond == NULL) && (corr->action == NULL)) {
+        DEBUG("state: %s %s", corr->from->name, corr->event->name);
+    } else if (corr->action == NULL) {
+        DEBUG("state: %s %s[%s]", corr->from->name, corr->event->name, corr->cond->name);
+    } else if (corr->cond == NULL) {
+        DEBUG("state: %s %s/%s", corr->from->name, corr->event->name, corr->action->name);
+    } else {
+        DEBUG("state: %s %s[%s]/%s", corr->from->name, corr->event->name, corr->cond->name, corr->action->name);
+    }
 } else {
-    DEBUG("state: %s --%s[%s]/%s-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->action->name, corr->to->name);
+    if ((corr->cond == NULL) && (corr->action == NULL)) {
+        DEBUG("state: %s --%s-> %s", corr->from->name, corr->event->name, corr->to->name);
+    } else if (corr->action == NULL) {
+        DEBUG("state: %s --%s[%s]-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->to->name);
+    } else if (corr->cond == NULL) {
+        DEBUG("state: %s --%s/%s-> %s", corr->from->name, corr->event->name, corr->action->name, corr->to->name);
+    } else {
+        DEBUG("state: %s --%s[%s]/%s-> %s", corr->from->name, corr->event->name, corr->cond->name, corr->action->name, corr->to->name);
+    }
 }
-                fsm_change_state(machine, corr->to);
+                if (corr->to != NULL) {
+                    fsm_change_state(machine, corr->to);
+                }
+
+                return true;
             }
-            return true;
         }
     }
 
@@ -259,11 +280,16 @@ if ((corr->cond == NULL) && (corr->action == NULL)) {
  *  @details    開始状態の状態マシンを, 生成する.
  *              初期化後の状態は @ref state_start となる.
  *
+ *              @c rels が設定されている場合は, 指定に従って状態の親を設定する.
+ *              状態マシンは, @c corresps の設定の状態遷移を行う.
+ *
+ *  @param      [in]    rels        状態の関係性.
  *  @param      [in]    corresps    状態遷移の対応表.
  *  @return     成功時は, 確保および初期化されたオブジェクトのポインタが返る.
  *              失敗時は, NULL が返り, errno が適切に設定される.
  */
-struct fsm *fsm_init(const struct fsm_trans *corresps)
+struct fsm *fsm_init(const struct fsm_rels *rels,
+                     const struct fsm_trans *corresps)
 {
     struct fsm *machine;
     STACK src_ancs, dest_ancs;
@@ -284,6 +310,19 @@ struct fsm *fsm_init(const struct fsm_trans *corresps)
     }
 
     *machine = FSM_HELPER(state_start, corresps, src_ancs, dest_ancs);
+
+    /* 状態の関係性を設定する. */
+    if (rels != NULL) {
+        const struct fsm_state *oneself, *parent;
+        for (int i = 0; rels[i].oneself != NULL; ++i) {
+            oneself = rels[i].oneself;
+            parent = rels[i].parent;
+            get_state_variable(oneself)->parent = parent;
+            if (rels[i].is_default) {
+                get_state_variable(parent)->history = oneself;
+            }
+        }
+    }
 
     /* Null 遷移を行う. */
     fsm_state_transit(machine, machine->current, event_null);
@@ -324,13 +363,13 @@ void fsm_transition(struct fsm *machine, const struct fsm_event *event)
 {
     const struct fsm_state *state;
 
-    if (machine == NULL) {
+    if ((machine == NULL) || (event == NULL)) {
         return;
     }
 
     state = machine->current;
     while ((state != NULL) && !fsm_state_transit(machine, state, event)) {
-        state = state->parent;
+        state = get_state_variable(state)->parent;
     }
 
     /* Null 遷移を行う. */
@@ -379,6 +418,10 @@ void *fsm_get_state_data(const struct fsm_state *state)
  */
 void fsm_current_state(struct fsm *machine, char *name, size_t len)
 {
+    if ((machine == NULL) || (name == NULL) || (len == 0)) {
+        return;
+    }
+
     strncpy(name, machine->current->name, len);
     name[len - 1] = '\0';
 }
@@ -398,7 +441,7 @@ void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
     TREE tree;
     QUEUE reserve;
 
-    if (handler == NULL) {
+    if ((machine == NULL) || (handler == NULL)) {
         return;
     }
 
@@ -406,10 +449,10 @@ void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
     states = set_init(sizeof(struct fsm_state *), 30);
     for (int i = 0; machine->corresps[i].from != NULL; ++i) {
         const struct fsm_trans *corr = &machine->corresps[i];
-        for (state = corr->from; state != NULL; state = state->parent) {
+        for (state = corr->from; state != NULL; state = get_state_variable(state)->parent) {
             set_add(states, (void *)&state);
         }
-        for (state = corr->to; state != NULL; state = state->parent) {
+        for (state = corr->to; state != NULL; state = get_state_variable(state)->parent) {
             set_add(states, (void *)&state);
         }
     }
@@ -423,8 +466,8 @@ void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
     reserve = queue_init(sizeof(struct fsm_state *), set_count(states));
     for (ITER it = set_iter(states); it != NULL; it = iter_next(it)) {
         state = *(const struct fsm_state **)iter_get_payload(it);
-        const struct fsm_state * const *parent =
-            (state->parent != NULL) ? &state->parent : NULL;
+        const struct fsm_state **parent =
+            (get_state_variable(state)->parent != NULL) ? &get_state_variable(state)->parent : NULL;
         if (tree_insert(tree, (void *)parent, (void *)&state) == NULL) {
             queue_enq(reserve, (void *)&state);
         }
@@ -434,8 +477,8 @@ void fsm_dump_state_transition(struct fsm *machine, void (*handler)(TREE))
         if (queue_deq(reserve, &state) < 0) {
             break;
         }
-        const struct fsm_state * const *parent =
-            (state->parent != NULL) ? &state->parent : NULL;
+        const struct fsm_state **parent =
+            (get_state_variable(state)->parent != NULL) ? &get_state_variable(state)->parent : NULL;
         if (tree_insert(tree, (void *)parent, (void *)&state) == NULL) {
             queue_enq(reserve, (void *)&state);
         }

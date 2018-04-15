@@ -2,7 +2,7 @@
 
 include ./config.mk
 
-.PHONY: all test doc clean
+.PHONY: all test example doc cppcheck oclint flawfinder clean
 
 all:
 	@make -C src
@@ -10,6 +10,9 @@ all:
 test: all
 	@make -C test
 	@./test/$(NAME)_test $(TAGS)
+
+example: all
+	@make -C example
 
 doc:
 	@sed -e 's/@PROJECT@/$(DOXY_PROJECT)/' \
@@ -20,7 +23,23 @@ doc:
 	     Doxygen.conf.in > Doxygen.conf
 	@doxygen Doxygen.conf
 
+cppcheck:
+	@cppcheck --enable=all --suppress=unusedFunction -I./include ./src
+
+oclint:
+	@oclint -enable-global-analysis \
+	        -enable-clang-static-analyzer \
+	        -disable-rule=LongLine \
+	        -disable-rule=ShortVariableName \
+	        -disable-rule=UselessParentheses \
+	        $(shell ls ./src/*.c) \
+	        -- -I./src -I./include
+
+flawfinder:
+	@flawfinder ./include ./src
+
 clean:
-	@rm -rf Doxygen.conf $(DOXY_OUTPUT)
+	@rm -rf Doxygen.conf $(DOXY_OUTPUT) *.plist
 	@make -C src clean
 	@make -C test clean
+	@make -C example clean

@@ -5,6 +5,7 @@
 *.a
 *_test
 
+*.plist
 Doxygen.conf
 /doxygen
 /cov-int

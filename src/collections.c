@@ -66,40 +66,43 @@ struct list {
 /**
  *  解放済みノードのリストにノードを追加する.
  *
- *  @param  [in,out]    l       リストオブジェクト.
+ *  @param  [in,out]    self    リストオブジェクト.
  *  @param  [in]        node    追加するノード.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c node の非 NULL は呼び出し側で保証すること.
  */
-static inline void list_push_released(struct list *l, struct list_node *node)
+static inline void list_push_released(struct list *self, struct list_node *node)
 {
     node->prev = NULL;
-    if (l->released == NULL) {
+    if (self->released == NULL) {
         node->next = NULL;
     } else {
-        node->next = l->released;
-        l->released->prev = node;
+        node->next = self->released;
+        self->released->prev = node;
     }
-    l->released = node;
+    self->released = node;
 }
 
 /**
  *  解放済みノードのリストからノードを取得する.
  *
- *  @param  [in,out]    l   リストオブジェクト.
+ *  @param  [in,out]    self    リストオブジェクト.
  *  @return 成功時は, ノードのポインタが返る.
  *          失敗時は, NULL が返り, errno が適切に設定される.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
  */
-static inline struct list_node *list_pop_released(struct list *l)
+static inline struct list_node *list_pop_released(struct list *self)
 {
-    struct list_node *node = l->released;
+    struct list_node *node = self->released;
 
     if (node == NULL) {
         errno = ENOMEM;
         return NULL;
     }
 
-    l->released = node->next;
-    if (l->released != NULL) {
-        l->released->prev = NULL;
+    self->released = node->next;
+    if (self->released != NULL) {
+        self->released->prev = NULL;
     }
 
     return node;
@@ -108,12 +111,14 @@ static inline struct list_node *list_pop_released(struct list *l)
 /**
  *  リストの初期設定を行う.
  *
- *  @param  [in,out]    l               リストオブジェクト.
+ *  @param  [in,out]    self            リストオブジェクト.
  *  @param  [in]        pool            リストに使用するメモリプール.
  *  @param  [in]        payload_bytes   データ部のサイズ.
  *  @param  [in]        capacity        リストの容量.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c pool の非 NULL は呼び出し側で保証すること.
  */
-static inline void list_setup(struct list *l,
+static inline void list_setup(struct list *self,
                               void *pool,
                               size_t payload_bytes,
                               size_t capacity)
@@ -122,11 +127,11 @@ static inline void list_setup(struct list *l,
     struct list_node *node;
     size_t i;
 
-    *l = LIST_INITIALIZER(pool, payload_bytes, capacity);
-    node_bytes = sizeof(*node) + l->payload_bytes;
-    for (i = 0; i < l->capacity; ++i) {
-        node = (struct list_node *)((uintptr_t)l->pool + (node_bytes * i));
-        list_push_released(l, node);
+    *self = LIST_INITIALIZER(pool, payload_bytes, capacity);
+    node_bytes = sizeof(*node) + self->payload_bytes;
+    for (i = 0; i < self->capacity; ++i) {
+        node = (struct list_node *)((uintptr_t)self->pool + (node_bytes * i));
+        list_push_released(self, node);
     }
 }
 
@@ -175,7 +180,7 @@ void *iter_get_payload(ITER iter)
  */
 LIST list_init(size_t payload_bytes, size_t capacity)
 {
-    struct list *l;
+    struct list *self;
     size_t node_bytes;
     void *pool;
 
@@ -184,19 +189,19 @@ LIST list_init(size_t payload_bytes, size_t capacity)
         return NULL;
     }
 
-    l = malloc(sizeof(*l));
+    self = malloc(sizeof(*self));
     node_bytes = sizeof(struct list_node) + payload_bytes;
     pool = calloc(capacity, node_bytes);
-    if ((l == NULL) || (pool == NULL)) {
+    if ((self == NULL) || (pool == NULL)) {
         free(pool);
-        free(l);
+        free(self);
         errno = ENOMEM;
         return NULL;
     }
 
-    list_setup(l, pool, payload_bytes, capacity);
+    list_setup(self, pool, payload_bytes, capacity);
 
-    return (LIST)l;
+    return (LIST)self;
 }
 
 /**
@@ -208,11 +213,11 @@ LIST list_init(size_t payload_bytes, size_t capacity)
  */
 void list_release(LIST list)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
 
-    if (l != NULL) {
-        free(l->pool);
-        free(l);
+    if (self != NULL) {
+        free(self->pool);
+        free(self);
     }
 }
 
@@ -226,16 +231,50 @@ void list_release(LIST list)
  */
 int list_clear(LIST list)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
 
-    if (l == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    list_setup(l, l->pool, l->payload_bytes, l->capacity);
+    list_setup(self, self->pool, self->payload_bytes, self->capacity);
 
     return 0;
+}
+
+/**
+ *  リストの先頭にノードを追加する.
+ *
+ *  @param  [in,out]    self    リストオブジェクト.
+ *  @param  [in,out]    node    追加するノード.
+ */
+void list_insert_head(struct list *self, struct list_node *node)
+{
+    if (self->root == NULL) {
+        self->root = self->last = node;
+    } else {
+        node->next = self->root;
+        self->root->prev = node;
+        self->root = node;
+    }
+}
+
+/**
+ *  リストの末尾にノードを追加する.
+ *
+ *  @param  [in,out]    self    リストオブジェクト.
+ *  @param  [in,out]    node    追加するノード.
+ */
+void list_insert_tail(struct list *self, struct list_node *node)
+{
+    if (self->last == NULL) {
+        self->root = self->last = node;
+    } else {
+        node->prev = self->last;
+        self->last->next = node;
+        self->last = node;
+    }
 }
 
 /**
@@ -251,33 +290,27 @@ int list_clear(LIST list)
  */
 void *list_insert(LIST list, int index, void *payload)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
     struct list_node *node;
     struct list_node *iter;
     int i;
 
-    if ((l == NULL) || (payload == NULL)) {
+    if ((self == NULL) || (payload == NULL)) {
         errno = EINVAL;
         return NULL;
     }
 
-    node = list_pop_released(l);
+    node = list_pop_released(self);
     if (node == NULL) {
         return NULL;
     }
     *node = LIST_NODE_INITIALIZER;
-    memcpy(node->payload, payload, l->payload_bytes);
+    memcpy(node->payload, payload, self->payload_bytes);
 
     if (index == 0) {
-        if (l->root == NULL) {
-            l->root = l->last = node;
-        } else {
-            node->next = l->root;
-            l->root->prev = node;
-            l->root = node;
-        }
+        list_insert_head(self, node);
     } else if (index > 0) {
-        iter = l->root;
+        iter = self->root;
         for (i = 0; i < index; ++i) {
             if (iter == NULL) {
                 errno = EINVAL;
@@ -286,9 +319,9 @@ void *list_insert(LIST list, int index, void *payload)
             iter = iter->next;
         }
         if (iter == NULL) {
-            node->prev = l->last;
-            l->last->next = node;
-            l->last = node;
+            node->prev = self->last;
+            self->last->next = node;
+            self->last = node;
         } else {
             node->next = iter;
             node->prev = iter->prev;
@@ -296,15 +329,9 @@ void *list_insert(LIST list, int index, void *payload)
             iter->prev = node;
         }
     } else {
-        if (l->last == NULL) {
-            l->root = l->last = node;
-        } else {
-            node->prev = l->last;
-            l->last->next = node;
-            l->last = node;
-        }
+        list_insert_tail(self, node);
     }
-    ++l->count;
+    ++self->count;
 
     return node->payload;
 }
@@ -334,21 +361,21 @@ void *list_add(LIST list, void *payload)
  */
 int list_remove(LIST list, ITER iter)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
     struct list_node *node;
 
-    if ((l == NULL) || (iter == NULL)) {
+    if ((self == NULL) || (iter == NULL)) {
         errno = EINVAL;
         return -1;
     }
 
     node = (struct list_node *)iter;
-    --l->count;
-    if (l->root == node) {
-        l->root = node->next;
+    --self->count;
+    if (self->root == node) {
+        self->root = node->next;
     }
-    if (l->last == node) {
-        l->last = node->prev;
+    if (self->last == node) {
+        self->last = node->prev;
     }
     if (node->prev != NULL) {
         node->prev->next = node->next;
@@ -357,7 +384,7 @@ int list_remove(LIST list, ITER iter)
         node->next->prev = node->prev;
     }
 
-    list_push_released(l, node);
+    list_push_released(self, node);
 
     return 0;
 }
@@ -372,14 +399,14 @@ int list_remove(LIST list, ITER iter)
  */
 ssize_t list_payload_bytes(LIST list)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
 
-    if (l == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    return l->payload_bytes;
+    return self->payload_bytes;
 }
 
 /**
@@ -392,14 +419,14 @@ ssize_t list_payload_bytes(LIST list)
  */
 ssize_t list_count(LIST list)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
 
-    if (l == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    return l->count;
+    return self->count;
 }
 
 /**
@@ -421,12 +448,12 @@ ssize_t list_count(LIST list)
  */
 ITER list_iter(LIST list)
 {
-    struct list *l = (struct list *)list;
-    if (l == NULL) {
+    struct list *self = (struct list *)list;
+    if (self == NULL) {
         errno = EINVAL;
         return NULL;
     }
-    return (ITER)l->root;
+    return (ITER)self->root;
 }
 
 /**
@@ -443,24 +470,24 @@ ITER list_iter(LIST list)
 
 int list_to_array(LIST list, void **array, size_t *count)
 {
-    struct list *l = (struct list *)list;
+    struct list *self = (struct list *)list;
     ITER iter;
     void *buf;
 
-    if ((l == NULL) || (array == NULL) || (count == NULL)) {
+    if ((self == NULL) || (array == NULL) || (count == NULL)) {
         errno = EINVAL;
         return -1;
     }
 
-    buf = malloc(l->payload_bytes * l->count);
+    buf = malloc(self->payload_bytes * self->count);
     if (buf == NULL) {
         return -1;
     }
     *array = buf;
     *count = 0;
-    for (iter = list_iter((LIST)l); iter != NULL; iter = iter_next(iter)) {
-        memcpy(buf, iter_get_payload(iter), l->payload_bytes);
-        buf += l->payload_bytes;
+    for (iter = list_iter(list); iter != NULL; iter = iter_next(iter)) {
+        memcpy(buf, iter_get_payload(iter), self->payload_bytes);
+        buf = (void *)((uintptr_t)buf + self->payload_bytes);
         ++(*count);
     }
 
@@ -531,10 +558,10 @@ void *stack_push(STACK stack, void *payload)
  */
 int stack_pop(STACK stack, void *payload)
 {
-    struct list *l = (struct list *)stack;
-    ITER iter = list_iter((LIST)l);
+    LIST list = (LIST)stack;
+    ITER iter = list_iter(list);
 
-    if ((l == NULL) || (payload == NULL)) {
+    if ((list == NULL) || (payload == NULL)) {
         errno = EINVAL;
         return -1;
     }
@@ -543,10 +570,10 @@ int stack_pop(STACK stack, void *payload)
         return -1;
     }
 
-    memcpy(payload, iter_get_payload(iter), l->payload_bytes);
-    list_remove((LIST)l, iter);
+    memcpy(payload, iter_get_payload(iter), list_payload_bytes(list));
+    list_remove(list, iter);
 
-    return l->count;
+    return list_count(list);
 }
 
 /**
@@ -648,10 +675,10 @@ void *queue_enq(QUEUE que, void *payload)
  */
 int queue_deq(QUEUE que, void *payload)
 {
-    struct list *l = (struct list *)que;
-    ITER iter = list_iter((LIST)l);
+    LIST list = (LIST)que;
+    ITER iter = list_iter(list);
 
-    if ((l == NULL) || (payload == NULL)) {
+    if ((list == NULL) || (payload == NULL)) {
         errno = EINVAL;
         return -1;
     }
@@ -660,10 +687,10 @@ int queue_deq(QUEUE que, void *payload)
         return -1;
     }
 
-    memcpy(payload, iter_get_payload(iter), l->payload_bytes);
-    list_remove((LIST)l, iter);
+    memcpy(payload, iter_get_payload(iter), list_payload_bytes(list));
+    list_remove(list, iter);
 
-    return l->count;
+    return list_count(list);
 }
 
 /**
@@ -769,23 +796,24 @@ int set_clear(SET set)
  */
 void *set_add(SET set, void *payload)
 {
-    struct list *l = (struct list *)set;
+    LIST list = (LIST)set;
+    ssize_t payload_bytes;
     ITER iter;
-    void *p;
 
-    if ((l == NULL) || (payload == NULL)) {
+    if ((list == NULL) || (payload == NULL)) {
         errno = EINVAL;
         return NULL;
     }
 
-    for (iter = list_iter((LIST)l); iter != NULL; iter = iter_next(iter)) {
-        p = iter_get_payload(iter);
-        if (memcmp(payload, p, l->payload_bytes) == 0) {
+    payload_bytes = list_payload_bytes(list);
+    for (iter = list_iter(list); iter != NULL; iter = iter_next(iter)) {
+        void *p = iter_get_payload(iter);
+        if (memcmp(payload, p, payload_bytes) == 0) {
             return p;
         }
     }
 
-    return list_insert((LIST)l, -1, payload);
+    return list_insert(list, -1, payload);
 }
 
 /**
@@ -890,37 +918,40 @@ struct tree_iter {
 /**
  *  N-ary ツリー向け, 解放済みノードのリストにノードを追加する.
  *
- *  @param  [in,out]    t       ツリーオブジェクト.
+ *  @param  [in,out]    self    ツリーオブジェクト.
  *  @param  [in]        node    追加するノード.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c node の非 NULL は呼び出し側で保証すること.
  */
-static inline void tree_push_released(struct tree *t, struct tree_node *node)
+static inline void tree_push_released(struct tree *self, struct tree_node *node)
 {
     node->first_child = NULL;
-    if (t->released == NULL) {
+    if (self->released == NULL) {
         node->next_sibling = NULL;
     } else {
-        node->next_sibling = t->released;
+        node->next_sibling = self->released;
     }
-    t->released = node;
+    self->released = node;
 }
 
 /**
  *  N-ary ツリー向け, 解放済みノードのリストからノードを取得する.
  *
- *  @param  [in,out]    t   ツリーオブジェクト.
+ *  @param  [in,out]    self    ツリーオブジェクト.
  *  @return 成功時は, ノードのポインタが返る.
  *          失敗時は, NULL が返り, errno が適切に設定される.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
  */
-static inline struct tree_node *tree_pop_released(struct tree *t)
+static inline struct tree_node *tree_pop_released(struct tree *self)
 {
-    struct tree_node *node = t->released;
+    struct tree_node *node = self->released;
 
     if (node == NULL) {
         errno = ENOMEM;
         return NULL;
     }
 
-    t->released = node->next_sibling;
+    self->released = node->next_sibling;
 
     return node;
 }
@@ -928,12 +959,14 @@ static inline struct tree_node *tree_pop_released(struct tree *t)
 /**
  *  ツリーの初期設定を行う.
  *
- *  @param  [in,out]    t               ツリーオブジェクト.
+ *  @param  [in,out]    self            ツリーオブジェクト.
  *  @param  [in]        pool            ツリーに使用するメモリプール.
  *  @param  [in]        payload_bytes   データ部のサイズ.
  *  @param  [in]        capacity        リストの容量.
+ *  @pre    @c self の非 NULL は呼び出し側で保証すること.
+ *  @pre    @c pool の非 NULL は呼び出し側で保証すること.
  */
-static inline void tree_setup(struct tree *t,
+static inline void tree_setup(struct tree *self,
                               void *pool,
                               size_t payload_bytes,
                               size_t capacity)
@@ -941,20 +974,20 @@ static inline void tree_setup(struct tree *t,
     size_t node_bytes;
     struct tree_node *node;
 
-    *t = TREE_INITIALIZER(pool, payload_bytes, capacity);
-    node_bytes = sizeof(*node) + t->payload_bytes;
-    for (size_t i = 0; i < t->capacity + 1; ++i) {
-        node = (struct tree_node *)((uintptr_t)t->pool + (node_bytes * i));
-        tree_push_released(t, node);
+    *self = TREE_INITIALIZER(pool, payload_bytes, capacity);
+    node_bytes = sizeof(*node) + self->payload_bytes;
+    for (size_t i = 0; i < self->capacity + 1; ++i) {
+        node = (struct tree_node *)((uintptr_t)self->pool + (node_bytes * i));
+        tree_push_released(self, node);
     }
 
     /* root は固定で割り当てる. */
-    /** @todo root は他の要素と重複しなさそうなデータ部にすること.
+    /** @todo root は他の要素と重複しなさそうなデータ部にする,
      *  もしくは区別できる仕組みを入れる.
      */
-    t->root = tree_pop_released(t);
-    *(t->root) = TREE_NODE_INITIALIZER;
-    memset(t->root->payload, 0x5A, t->payload_bytes);
+    self->root = tree_pop_released(self);
+    *(self->root) = TREE_NODE_INITIALIZER;
+    memset(self->root->payload, 0x5A, self->payload_bytes);
 }
 
 /**
@@ -969,7 +1002,7 @@ static inline void tree_setup(struct tree *t,
  */
 TREE tree_init(size_t payload_bytes, size_t capacity)
 {
-    struct tree *t;
+    struct tree *self;
     size_t node_bytes;
     void *pool;
 
@@ -978,19 +1011,19 @@ TREE tree_init(size_t payload_bytes, size_t capacity)
         return NULL;
     }
 
-    t = malloc(sizeof(*t));
+    self = malloc(sizeof(*self));
     node_bytes = sizeof(struct tree_node) + payload_bytes;
     pool = calloc(capacity + 1, node_bytes);
-    if ((t == NULL) || (pool == NULL)) {
+    if ((self == NULL) || (pool == NULL)) {
         free(pool);
-        free(t);
+        free(self);
         errno = ENOMEM;
         return NULL;
     }
 
-    tree_setup(t, pool, payload_bytes, capacity);
+    tree_setup(self, pool, payload_bytes, capacity);
 
-    return (TREE)t;
+    return (TREE)self;
 }
 
 /**
@@ -1002,11 +1035,11 @@ TREE tree_init(size_t payload_bytes, size_t capacity)
  */
 void tree_release(TREE tree)
 {
-    struct tree *t = (struct tree *)tree;
+    struct tree *self = (struct tree *)tree;
 
-    if (t != NULL) {
-        free(t->pool);
-        free(t);
+    if (self != NULL) {
+        free(self->pool);
+        free(self);
     }
 }
 
@@ -1020,14 +1053,14 @@ void tree_release(TREE tree)
  */
 int tree_clear(TREE tree)
 {
-    struct tree *t = (struct tree *)tree;
+    struct tree *self = (struct tree *)tree;
 
-    if (t == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    tree_setup(t, t->pool, t->payload_bytes, t->capacity);
+    tree_setup(self, self->pool, self->payload_bytes, self->capacity);
 
     return 0;
 }
@@ -1037,7 +1070,7 @@ int tree_clear(TREE tree)
  *              @c parent が複数存在する場合は, 最初に見つかった要素の子として
  *              追加する.
  *
- *  @param      [in,out]    t       ツリーオブジェクト.
+ *  @param      [in,out]    self    ツリーオブジェクト.
  *  @param      [in,out]    node    探索中の要素.
  *  @param      [in]        age     探索中の世代 (深さ).
  *  @param      [in]        parent  探索対象のデータ部.
@@ -1045,49 +1078,62 @@ int tree_clear(TREE tree)
  *  @return     成功時は, 追加したツリー上のデータ部のポインタが返る.
  *              失敗時は, NULL が返り, errno が適切に設定される.
  *  @remarks    探索は幅 (同一の親に追加された要素) 優先で行われる.
+ *  @pre        @c self の非 NULL は呼び出し側で保証すること.
+ *  @pre        @c node の非 NULL は呼び出し側で保証すること.
+ *  @pre        @c parent の非 NULL は呼び出し側で保証すること.
+ *  @pre        @c payload の非 NULL は呼び出し側で保証すること.
  */
-void *tree_insert_inner(struct tree *t,
-                        struct tree_node *node,
-                        int age,
-                        void *parent,
-                        void *payload)
+static void *tree_insert_inner(struct tree *self,
+                               struct tree_node *node,
+                               int age,
+                               void *parent,
+                               void *payload)
 {
-    if (memcmp(node->payload, parent, t->payload_bytes) == 0) {
+    void *additional = NULL;
+
+    if (memcmp(node->payload, parent, self->payload_bytes) == 0) {
         struct tree_node *child = node->first_child;
         if (child == NULL) {
-            node->first_child = tree_pop_released(t);
+            node->first_child = tree_pop_released(self);
             if (node->first_child == NULL) {
                 return NULL;
             }
             *node->first_child = TREE_NODE_INITIALIZER;
             node->first_child->age = age;
-            memcpy(node->first_child->payload, payload, t->payload_bytes);
-            ++t->count;
-            return node->first_child->payload;
+            memcpy(node->first_child->payload, payload, self->payload_bytes);
+            additional = node->first_child->payload;
         } else {
             while (child->next_sibling != NULL) {
                 child = child->next_sibling;
             }
-            child->next_sibling = tree_pop_released(t);
+            child->next_sibling = tree_pop_released(self);
             if (child->next_sibling == NULL) {
                 return NULL;
             }
             *child->next_sibling = TREE_NODE_INITIALIZER;
             child->next_sibling->age = age;
-            memcpy(child->next_sibling->payload, payload, t->payload_bytes);
-            ++t->count;
-            return child->next_sibling->payload;
+            memcpy(child->next_sibling->payload, payload, self->payload_bytes);
+            additional = child->next_sibling->payload;
         }
+        ++self->count;
     } else {
-        void *additional = NULL;
         if (node->next_sibling != NULL) {
-            additional = tree_insert_inner(t, node->next_sibling, age, parent, payload);
+            additional = tree_insert_inner(self,
+                                           node->next_sibling,
+                                           age,
+                                           parent,
+                                           payload);
         }
         if ((additional == NULL) && (node->first_child != NULL)) {
-            additional = tree_insert_inner(t, node->first_child, age + 1, parent, payload);
+            additional = tree_insert_inner(self,
+                                           node->first_child,
+                                           age + 1,
+                                           parent,
+                                           payload);
         }
-        return additional;
     }
+
+    return additional;
 }
 
 /**
@@ -1102,18 +1148,18 @@ void *tree_insert_inner(struct tree *t,
  */
 void *tree_insert(TREE tree, void *parent, void *payload)
 {
-    struct tree *t = (struct tree *)tree;
+    struct tree *self = (struct tree *)tree;
 
-    if ((t == NULL) || (payload == NULL)) {
+    if ((self == NULL) || (payload == NULL)) {
         errno = EINVAL;
         return NULL;
     }
 
-    if (parent == NULL) {
-        parent = t->root->payload;
-    }
-
-    return tree_insert_inner(t, t->root, 1, parent, payload);
+    return tree_insert_inner(self,
+                             self->root,
+                             1,
+                             (parent ?: self->root->payload),
+                             payload);
 }
 
 /**
@@ -1126,14 +1172,14 @@ void *tree_insert(TREE tree, void *parent, void *payload)
  */
 ssize_t tree_count(TREE tree)
 {
-    struct tree *t = (struct tree *)tree;
+    struct tree *self = (struct tree *)tree;
 
-    if (t == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    return t->count;
+    return self->count;
 }
 
 /**
@@ -1157,29 +1203,29 @@ ssize_t tree_count(TREE tree)
  */
 TREE_ITER tree_iter_get(TREE tree)
 {
-    struct tree *t = (struct tree *)tree;
-    struct tree_iter *it;
+    struct tree *self = (struct tree *)tree;
+    struct tree_iter *iter;
 
-    it = malloc(sizeof(*it));
-    if (it == NULL) {
+    iter = malloc(sizeof(*iter));
+    if (iter == NULL) {
         return NULL;
     }
-    *it = TREE_ITER_INITIALIZER;
-    it->fringe = stack_init(sizeof(struct tree_node *), t->capacity);
-    if (it->fringe == NULL) {
-        free(it);
+    *iter = TREE_ITER_INITIALIZER;
+    iter->fringe = stack_init(sizeof(struct tree_node *), self->capacity);
+    if (iter->fringe == NULL) {
+        free(iter);
         return NULL;
     }
 
-    if (t->root->first_child != NULL) {
-        stack_push(it->fringe, &t->root->first_child);
+    if (self->root->first_child != NULL) {
+        stack_push(iter->fringe, &self->root->first_child);
     }
 
-    if (tree_iter_next((TREE_ITER)it) == NULL) {
-        tree_iter_release((TREE_ITER)it);
-        it = NULL;
+    if (tree_iter_next((TREE_ITER)iter) == NULL) {
+        tree_iter_release((TREE_ITER)iter);
+        iter = NULL;
     }
-    return (TREE_ITER)it;
+    return (TREE_ITER)iter;
 }
 
 /**
@@ -1191,11 +1237,11 @@ TREE_ITER tree_iter_get(TREE tree)
  */
 void tree_iter_release(TREE_ITER iter)
 {
-    struct tree_iter *it = (struct tree_iter *)iter;
+    struct tree_iter *self = (struct tree_iter *)iter;
 
-    if (it != NULL) {
-        stack_release(it->fringe);
-        free(it);
+    if (self != NULL) {
+        stack_release(self->fringe);
+        free(self);
     }
 }
 
@@ -1209,31 +1255,31 @@ void tree_iter_release(TREE_ITER iter)
  */
 TREE_ITER tree_iter_next(TREE_ITER iter)
 {
-    struct tree_iter *it = (struct tree_iter *)iter;
+    struct tree_iter *self = (struct tree_iter *)iter;
     struct tree_node *node;
     int ret;
 
-    if (it == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return NULL;
     }
 
-    if (stack_count(it->fringe) == 0) {
+    if (stack_count(self->fringe) == 0) {
         errno = ENOENT;
         return NULL;
     }
 
-    ret = stack_pop(it->fringe, &node);
+    ret = stack_pop(self->fringe, &node);
     if (ret == -1) {
         return NULL;
     }
-    it->age = node->age;
-    it->payload = node->payload;
+    self->age = node->age;
+    self->payload = node->payload;
     if (node->next_sibling != NULL) {
-        stack_push(it->fringe, &node->next_sibling);
+        stack_push(self->fringe, &node->next_sibling);
     }
     if (node->first_child != NULL) {
-        stack_push(it->fringe, &node->first_child);
+        stack_push(self->fringe, &node->first_child);
     }
 
     return iter;
@@ -1249,14 +1295,14 @@ TREE_ITER tree_iter_next(TREE_ITER iter)
  */
 void *tree_iter_get_payload(TREE_ITER iter)
 {
-    struct tree_iter *it = (struct tree_iter *)iter;
+    struct tree_iter *self = (struct tree_iter *)iter;
 
-    if (it == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return NULL;
     }
 
-    return it->payload;
+    return self->payload;
 }
 
 /**
@@ -1269,12 +1315,12 @@ void *tree_iter_get_payload(TREE_ITER iter)
  */
 int tree_iter_get_age(TREE_ITER iter)
 {
-    struct tree_iter *it = (struct tree_iter *)iter;
+    struct tree_iter *self = (struct tree_iter *)iter;
 
-    if (it == NULL) {
+    if (self == NULL) {
         errno = EINVAL;
         return -1;
     }
 
-    return it->age;
+    return self->age;
 }

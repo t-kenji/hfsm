@@ -9,10 +9,14 @@
  *
  *  This code is licensed under the MIT License.
  */
-#ifndef __ANTTQ_COLLECTIONS_H__
-#define __ANTTQ_COLLECTIONS_H__
+#ifndef __HFSM_COLLECTIONS_H__
+#define __HFSM_COLLECTIONS_H__
 
-#include <stdlib.h>
+#include <unistd.h>
+
+/** @defgroup cat_collections Collections
+ *  汎用コレクションを提供するモジュール.
+ */
 
 /**
  *  汎用反復子型
@@ -29,6 +33,12 @@ ITER iter_next(ITER iter);
  */
 void *iter_get_payload(ITER iter);
 
+/** @addtogroup cat_list List 構造
+ *  List 構造を提供するモジュール.
+ *  @ingroup cat_collections
+ *  @{
+ */
+
 /**
  *  汎用リスト型.
  */
@@ -36,6 +46,21 @@ typedef struct {} *LIST;
 
 /**
  *  リストオブジェクトを初期化する.
+ *
+ *  @par    使用例
+ *          @code
+ *          LIST list = list_init(sizeof(int), 100);
+ *          int data;
+ *          data = 1;
+ *          list_add(list, &data);
+ *          data = 2;
+ *          list_add(list, &data);
+ *          for (ITER iter = list_iter(list); iter != NULL; iter = iter_next(iter)) {
+ *              data = *(int *)iter_get_payload(iter);
+ *              // do something.
+ *          }
+ *          list_release(list);
+ *          @endcode
  */
 LIST list_init(size_t payload_bytes, size_t capacity);
 
@@ -84,6 +109,14 @@ ITER list_iter(LIST list);
  */
 int list_to_array(LIST list, void **array, size_t *count);
 
+/** @} */
+
+/** @addtogroup cat_stack Stack 構造
+ *  Stack 構造を提供するモジュール.
+ *  @ingroup cat_collections
+ *  @{
+ */
+
 /**
  *  汎用スタック型.
  */
@@ -91,6 +124,21 @@ typedef struct {} *STACK;
 
 /**
  *  スタックオブジェクトを初期化する.
+ *
+ *  @par    使用例
+ *          @code
+ *          STACK stack = stack_init(sizeof(int), 100);
+ *          int data;
+ *          data = 1;
+ *          stack_push(stack, &data);
+ *          data = 2;
+ *          stack_push(stack, &data);
+ *          stack_pop(stack, &data);
+ *          // do something.
+ *          stack_pop(stack, &data);
+ *          // do something.
+ *          stack_release(stack);
+ *          @endcode
  */
 STACK stack_init(size_t payload_bytes, size_t capacity);
 
@@ -124,6 +172,14 @@ ssize_t stack_count(STACK stack);
  */
 ITER stack_iter(STACK stack);
 
+/** @} */
+
+/** @addtogroup cat_queue Queue 構造
+ *  Queue 構造を提供するモジュール.
+ *  @ingroup cat_collections
+ *  @{
+ */
+
 /**
  *  汎用キュー型.
  */
@@ -131,6 +187,21 @@ typedef struct {} *QUEUE;
 
 /**
  *  キューオブジェクトを初期化する.
+ *
+ *  @par    使用例
+ *          @code
+ *          QUEUE que = queue_init(sizeof(int), 100);
+ *          int data;
+ *          data = 1;
+ *          queue_enq(que, &data);
+ *          data = 2;
+ *          queue_enq(que, &data);
+ *          queue_deq(que, &data);
+ *          // do something.
+ *          queue_deq(que, &data);
+ *          // do something.
+ *          queue_release(que);
+ *          @endcode
  */
 QUEUE queue_init(size_t payload_bytes, size_t capacity);
 
@@ -169,6 +240,14 @@ ITER queue_iter(QUEUE que);
  */
 int queue_to_array(QUEUE que, void **array, size_t *count);
 
+/** @} */
+
+/** @addtogroup cat_set Set 構造
+ *  Set 構造を提供するモジュール.
+ *  @ingroup cat_collections
+ *  @{
+ */
+
 /**
  *  汎用セット型.
  */
@@ -176,6 +255,21 @@ typedef struct {} *SET;
 
 /**
  *  セットオブジェクトを初期化する.
+ *
+ *  @par    使用例
+ *          @code
+ *          SET set = set_init(sizeof(int), 100);
+ *          int data;
+ *          data = 1;
+ *          set_add(set, &data);
+ *          data = 2;
+ *          set_add(set, &data);
+ *          for (ITER iter = set_iter(set); iter != NULL; iter = iter_next(iter)) {
+ *              data = *(int *)iter_get_payload(iter);
+ *              // do something.
+ *          }
+ *          set_release(set);
+ *          @endcode
  */
 SET set_init(size_t payload_bytes, size_t capacity);
 
@@ -204,6 +298,14 @@ ssize_t set_count(SET set);
  */
 ITER set_iter(SET set);
 
+/** @} */
+
+/** @addtogroup cat_tree N-ary Tree 構造
+ *  N-ary Tree 構造を提供するモジュール.
+ *  @ingroup cat_collections
+ *  @{
+ */
+
 /**
  *  汎用 N-ary ツリー型.
  */
@@ -216,6 +318,29 @@ typedef struct {} *TREE_ITER;
 
 /**
  *  N-ary ツリーオブジェクトを初期化する.
+ *
+ *  @par    使用例
+ *          @code
+ *          TREE tree = tree_init(sizeof(int), 100);
+ *          int data, parent;
+ *          data = 1;
+ *          tree_insert(tree, NULL, &data);
+ *          data = 2;
+ *          tree_insert(tree, NULL, &data);
+ *          data = 11;
+ *          parent = 1;
+ *          tree_insert(tree, &parent, &data);
+ *          data = 21;
+ *          parent = 2;
+ *          tree_insert(tree, &parent, &data);
+ *          for (TREE_ITER iter = tree_iter_get(tree);
+ *               iter != NULL;
+ *               iter = tree_iter_next(iter)) {
+ *              data = *(int *)tree_iter_get_payload(iter);
+ *              // do something.
+ *          }
+ *          tree_release(tree);
+ *          @endcode
  */
 TREE tree_init(size_t payload_bytes, size_t capacity);
 
@@ -264,4 +389,6 @@ void *tree_iter_get_payload(TREE_ITER iter);
  */
 int tree_iter_get_age(TREE_ITER iter);
 
-#endif /* __ANTTQ_COLLECTIONS_H__ */
+/** @} */
+
+#endif /* __HFSM_COLLECTIONS_H__ */
